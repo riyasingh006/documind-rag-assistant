@@ -1,0 +1,155 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        paper: "#08060F",
+        night: "#07040C",
+        surface: "#140D24",
+        "surface-raised": "#1A112C",
+        ink: {
+          950: "#FCFAFF",
+          900: "#F5F0FF",
+          800: "#EAE0FA",
+          700: "#D8C8F0",
+          600: "#C0AEDB",
+          500: "#A995C7",
+          400: "#927FB0",
+          300: "#7B6998",
+          200: "#584574",
+          100: "#34274D",
+          50: "#21172F",
+        },
+        brand: {
+          50: "#241238",
+          100: "#321847",
+          200: "#4C2870",
+          300: "#C4B5FD",
+          400: "#C084FC",
+          500: "#A855F7",
+          600: "#7C3AED",
+          700: "#6D28D9",
+          800: "#5B21B6",
+          900: "#4C1D95",
+        },
+        sky: {
+          50: "#2A1022",
+          200: "#5D2043",
+          400: "#F472B6",
+          500: "#EC4899",
+          600: "#DB2777",
+          700: "#F9A8D4",
+        },
+        lavender: "#1D1330",
+        emerald: {
+          50: "#0B2A21",
+          100: "#0F3A2D",
+          200: "#165C48",
+          400: "#34D399",
+          500: "#10B981",
+          600: "#34D399",
+          700: "#6EE7B7",
+          800: "#A7F3D0",
+        },
+        amber: {
+          50: "#2A1D09",
+          100: "#3D2A0D",
+          200: "#6B4A11",
+          400: "#FBBF24",
+          500: "#F59E0B",
+          600: "#FBBF24",
+          700: "#FCD34D",
+          800: "#FDE68A",
+          900: "#FEF3C7",
+        },
+        red: {
+          50: "#2A1018",
+          100: "#3A1520",
+          200: "#6B2437",
+          300: "#9F2F49",
+          400: "#FB7185",
+          500: "#F43F5E",
+          600: "#FB7185",
+          700: "#FDA4AF",
+          900: "#FECDD3",
+        },
+        rose: {
+          50: "#2A1020",
+          500: "#FB7185",
+        },
+      },
+      fontFamily: {
+        sans: [
+          "Inter",
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          "Segoe UI",
+          "sans-serif",
+        ],
+      },
+      fontSize: {
+        "display-sm": ["2.75rem", { lineHeight: "1.06", letterSpacing: "-0.035em" }],
+        "display-md": ["3.5rem", { lineHeight: "1.05", letterSpacing: "-0.04em" }],
+        "display-lg": ["4.5rem", { lineHeight: "1.02", letterSpacing: "-0.045em" }],
+      },
+      boxShadow: {
+        soft: "0 1px 2px rgba(0, 0, 0, 0.28), 0 18px 42px -24px rgba(124, 58, 237, 0.42)",
+        card: "0 1px 2px rgba(0, 0, 0, 0.34), 0 28px 65px -32px rgba(168, 85, 247, 0.44)",
+        lift: "0 2px 5px rgba(0, 0, 0, 0.42), 0 34px 80px -30px rgba(192, 38, 211, 0.46)",
+        inset: "inset 0 1px 0 rgba(255, 255, 255, 0.07)",
+      },
+      backgroundImage: {
+        "grid-fade":
+          "linear-gradient(to right, rgba(196, 181, 253, 0.07) 1px, transparent 1px), linear-gradient(to bottom, rgba(196, 181, 253, 0.07) 1px, transparent 1px)",
+      },
+      backgroundSize: {
+        grid: "56px 56px",
+      },
+      keyframes: {
+        "fade-up": {
+          "0%": { opacity: "0", transform: "translateY(16px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-8px)" },
+        },
+        "pulse-soft": {
+          "0%, 100%": { opacity: "0.45" },
+          "50%": { opacity: "0.9" },
+        },
+        shimmer: {
+          "100%": { transform: "translateX(100%)" },
+        },
+        "caret-blink": {
+          "0%, 70%, 100%": { opacity: "1" },
+          "20%, 50%": { opacity: "0" },
+        },
+        aurora: {
+          "0%": { transform: "translate3d(-2%, 0, 0) scale(1)" },
+          "50%": { transform: "translate3d(2%, -3%, 0) scale(1.06)" },
+          "100%": { transform: "translate3d(-1%, 2%, 0) scale(1.03)" },
+        },
+        glow: {
+          "0%, 100%": { opacity: "0.45" },
+          "50%": { opacity: "0.8" },
+        },
+      },
+      animation: {
+        "fade-up": "fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both",
+        float: "float 7s ease-in-out infinite",
+        "pulse-soft": "pulse-soft 4s ease-in-out infinite",
+        shimmer: "shimmer 1.8s infinite",
+        "caret-blink": "caret-blink 1.2s step-end infinite",
+        aurora: "aurora 18s ease-in-out infinite alternate",
+        glow: "glow 7s ease-in-out infinite",
+      },
+      transitionTimingFunction: {
+        premium: "cubic-bezier(0.22, 1, 0.36, 1)",
+      },
+    },
+  },
+  plugins: [],
+};

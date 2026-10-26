@@ -1,0 +1,26 @@
+# Frontend
+node_modules/
+dist/
+test-results/
+playwright-report/
+.vite/
+
+# Backend
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+backend/.env
+
+# Runtime data (keep the directory placeholder)
+backend/data/uploads/*
+backend/data/index/*
+!backend/data/uploads/.gitkeep
+!backend/data/index/.gitkeep
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
