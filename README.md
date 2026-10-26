@@ -1,359 +1,814 @@
-# DocuMind AI
+<div align="center">
 
-DocuMind AI is a local-first document question-answering application. It combines a React workspace with a FastAPI retrieval-augmented generation (RAG) backend: upload PDF or TXT files, ask questions, and inspect the exact passages used to produce each answer.
+# 📚 DocuMind AI
 
-The UI is honest about its evidence. Answers include source citations, retrieval scores, and page references. When no LLM is available, the backend falls back to a clearly labeled extractive answer built from retrieved sentences rather than inventing a response.
+### 🧠 Intelligent Document Question Answering System
 
-## Features
+**💬 Ask Questions · 🔍 Retrieve Evidence · 📑 Get Source-Grounded Answers**
 
-- Premium, responsive marketing site with accessible navigation, FAQ, and product previews.
-- Upload PDF/TXT files with per-file progress, validation errors, and configurable chunking.
-- Document library with search, type filters, metadata, and delete confirmation.
-- Question answering scoped to all documents or a selected subset.
-- Inline citation markers, expandable source evidence, relevance scores, and page references.
-- Retrieval diagnostics showing candidates, passages that passed the cutoff, passages placed in the prompt, and citation usage.
-- Relative relevance cutoff with an absolute similarity floor, so broad but relevant questions are not rejected while unrelated material still is.
-- Greeting detection that skips retrieval when a document search is unnecessary.
-- Chat history persisted for the browser session.
-- Retrieval settings saved in `localStorage` per browser.
-- Health reporting for the embedding model, vector index, and LLM provider.
-- Local embeddings with FAISS; no mandatory external AI service.
-- Optional Ollama or OpenAI-compatible generation.
-- Explicit loading, empty, error, offline, insufficient-evidence, and degraded states.
-- API and browser test coverage plus deterministic backend test fakes.
+Transform your documents into an interactive knowledge base using **Retrieval-Augmented Generation (RAG), Semantic Search, Vector Embeddings, and Large Language Models.**
 
-## Architecture
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge\&logo=react\&logoColor=white)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge\&logo=typescript\&logoColor=white)](https://www.typescriptlang.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge\&logo=fastapi\&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge\&logo=python\&logoColor=white)](https://www.python.org/)
+[![FAISS](https://img.shields.io/badge/FAISS-Vector_Search-0467DF?style=for-the-badge)](https://github.com/facebookresearch/faiss)
 
-```text
-Browser (React + Vite)
-  |
-  | JSON / multipart HTTP
-  v
-FastAPI
-  |
-  +-- Document extraction (PyMuPDF / UTF-8 / UTF-16 / CP1252)
-  +-- Token-based overlapping chunking
-  +-- sentence-transformers/all-MiniLM-L6-v2 embeddings
-  |     +-- long chunks split into 256-token windows
-  |     +-- window hits deduplicated back to parent chunks
-  +-- FAISS inner-product index (cosine similarity)
-  +-- Persisted metadata and vectors (JSON / npy)
-  +-- Optional LLM
-        +-- Ollama (preferred when reachable)
-        +-- OpenAI-compatible endpoint
-        +-- Labeled extractive fallback
+<br/>
+
+**🚀 From Raw Documents to Intelligent Answers — Powered by RAG**
+
+📄 PDF & TXT Support · 🧠 Local Embeddings · 🔎 Semantic Retrieval · 📌 Source Citations
+
+<br/>
+
+[✨ Features](#-key-features) •
+[🏗️ Architecture](#️-system-architecture) •
+[🔬 RAG Pipeline](#-rag-pipeline) •
+[⚙️ Installation](#️-installation-and-setup) •
+[🔌 API](#-api-reference)
+
+</div>
+
+---
+
+## 🌟 About The Project
+
+**DocuMind AI** is a full-stack, document-based question-answering application that enables users to interact with their documents through natural language.
+
+Instead of manually searching through lengthy PDFs or text files, users can upload their documents, ask questions, and receive answers grounded in relevant document passages.
+
+The application combines a modern React frontend with a FastAPI backend, local semantic embeddings, FAISS vector search, and configurable answer-generation providers.
+
+Its Retrieval-Augmented Generation architecture helps connect language-model responses with evidence retrieved from the user's own documents.
+
+### 💡 What Makes DocuMind AI Special?
+
+* 🧠 **Semantic Understanding:** Finds relevant passages based on meaning, not only exact keywords.
+* 📚 **Document Intelligence:** Converts uploaded documents into searchable knowledge.
+* 🔍 **Evidence-Based Retrieval:** Retrieves relevant chunks before generating answers.
+* 📌 **Source-Aware Responses:** Displays retrieved passages and validates citation identifiers.
+* 🖥️ **Local-First Embeddings:** Generates document and question embeddings locally by default.
+* 🔄 **Flexible AI Generation:** Supports optional Ollama, OpenAI-compatible providers, and extractive fallback.
+* ⚡ **Modern Full-Stack Architecture:** Separates the user interface, API, retrieval engine, and generation logic.
+
+---
+
+## 🎯 Problem Statement
+
+Working with lengthy documents can make it difficult to locate specific information quickly. Traditional keyword searches may miss relevant content when the user's wording differs from the text.
+
+Additionally, a language model can produce unsupported information when it answers without appropriate evidence.
+
+DocuMind AI addresses these challenges by combining semantic retrieval with document-grounded question answering.
+
+### 🎯 Project Objectives
+
+* 📄 Simplify document upload and processing.
+* 🧩 Break lengthy documents into manageable text chunks.
+* 🧠 Generate semantic vector embeddings.
+* 🔎 Retrieve relevant passages using similarity search.
+* 💬 Generate answers using retrieved evidence.
+* 📌 Provide source references to support answer inspection.
+* 🛡️ Handle missing evidence and unavailable generation providers gracefully.
+
+---
+
+## ✨ Key Features
+
+### 📂 1. Intelligent Document Processing
+
+* Upload PDF and TXT documents.
+* Validate file extensions, sizes, and document content.
+* Extract PDF text page by page using PyMuPDF.
+* Decode supported UTF-8, UTF-16, and CP1252 text files.
+* Preserve page metadata for source attribution.
+* Configure chunk size and overlap during ingestion.
+
+### 🧠 2. Semantic Embedding Generation
+
+DocuMind AI uses the `sentence-transformers/all-MiniLM-L6-v2` embedding model.
+
+* 🔢 Generates 384-dimensional vectors with the default model.
+* 💻 Performs embedding inference locally by default.
+* 🧩 Supports overlapping model windows for long chunks.
+* 📐 Normalizes vectors for similarity-based retrieval.
+
+### 🔍 3. FAISS-Powered Vector Search
+
+The application uses **FAISS IndexFlatIP** for exact inner-product search over normalized vectors.
+
+Features include:
+
+* 🎯 Similarity-based candidate retrieval.
+* 🧹 Duplicate parent-chunk filtering.
+* 📊 Absolute and relative similarity cutoffs.
+* 🔢 Configurable top-K retrieval.
+* 📚 Search across all documents or selected documents.
+
+### 💬 4. Retrieval-Augmented Generation
+
+The RAG engine retrieves relevant document passages and uses them to construct the context for answering a question.
+
+Supported generation modes include:
+
+* 🦙 **Ollama:** Optional local LLM inference.
+* 🌐 **OpenAI-Compatible API:** Optional compatible generation endpoint.
+* 📝 **Extractive Fallback:** Extracts relevant sentences from retrieved evidence when enabled.
+
+The default local embedding and extractive-answering workflow does not require a paid LLM API key.
+
+### 📌 5. Source Evidence and Citation Validation
+
+* 🔢 Numbered source passages.
+* 📄 Source filenames and page information.
+* 📊 Retrieval similarity information.
+* 🔗 Inline citation markers such as `[1]`.
+* ✅ Validation of citation identifiers against available sources.
+* 📚 Distinction between cited and retrieved-only sources.
+
+> ⚠️ Citation validation checks whether a citation refers to a supplied source. It does not independently verify every factual claim.
+
+### 🗂️ 6. Document Library Management
+
+* 📋 Browse indexed documents.
+* 🔎 Search the document library.
+* 🏷️ Filter documents by file type.
+* 🗑️ Delete documents and their associated vectors.
+* 🔄 Reload persisted document data after backend restarts.
+
+### ⚙️ 7. Configurable Workspace
+
+* 🎛️ Retrieval settings with browser-side persistence.
+* 💬 Session-scoped chat history.
+* ❤️ Backend health and LLM provider status.
+* ⏳ Loading and progress states.
+* 🚫 Empty, offline, error, and insufficient-evidence states.
+* 📱 Responsive landing page and workspace.
+* ♿ Accessibility features including ARIA labels, keyboard-focus management, skip links, and reduced-motion handling.
+
+---
+
+## 🛠️ Technology Stack
+
+| Category                  | Technologies                        |
+| ------------------------- | ----------------------------------- |
+| 🎨 Frontend               | React 18, TypeScript 5              |
+| ⚡ Build Tool              | Vite 6                              |
+| 🧭 Routing                | React Router DOM 6                  |
+| 🎨 Styling                | Tailwind CSS 3, PostCSS, Custom CSS |
+| 🧩 UI Utilities           | Lucide React, clsx, tailwind-merge  |
+| 🐍 Backend                | Python, FastAPI                     |
+| 🚀 API Server             | Uvicorn                             |
+| ✅ Validation              | Pydantic v2                         |
+| 🧠 Embeddings             | Sentence Transformers               |
+| 📦 Embedding Model        | `all-MiniLM-L6-v2`                  |
+| 🔍 Vector Database/Search | FAISS CPU                           |
+| 🔢 Numerical Processing   | NumPy                               |
+| 📄 PDF Extraction         | PyMuPDF                             |
+| 🤖 Local LLM Runtime      | Ollama — Optional                   |
+| 🌐 LLM Integration        | OpenAI-Compatible API — Optional    |
+| 💾 Persistence            | Filesystem, JSON, NumPy arrays      |
+| 🧪 Backend Testing        | pytest                              |
+| 🧪 Frontend Testing       | Vitest, Testing Library, jsdom      |
+| 🎭 Browser Testing        | Playwright                          |
+
+---
+
+## 🏗️ System Architecture
+
+DocuMind AI follows a modular frontend-backend architecture.
+
+The frontend communicates with FastAPI through HTTP requests. The backend handles ingestion, embedding generation, vector storage, semantic retrieval, prompt construction, generation-provider selection, and response formatting.
+
+### 🔄 Architecture Diagram
+
+```mermaid
+flowchart TD
+    A["👤 User"] --> B["⚛️ React + TypeScript Frontend"]
+
+    B --> C["📤 Document Upload"]
+    B --> D["💬 Ask a Question"]
+
+    C --> E["🚀 FastAPI Backend"]
+
+    E --> F["📄 PDF / TXT Extraction"]
+    F --> G["🧩 Text Chunking"]
+    G --> H["🧠 MiniLM Embeddings"]
+
+    H --> I["💾 Filesystem Persistence"]
+    I --> J["🔍 FAISS Vector Index"]
+
+    D --> E
+    E --> K["🔎 Semantic Retrieval"]
+    J --> K
+
+    K --> L["🧠 RAG Service"]
+    L --> M["🤖 LLM Router"]
+
+    M --> N["🦙 Ollama"]
+    M --> O["🌐 OpenAI-Compatible API"]
+    M --> P["📝 Extractive Fallback"]
+
+    N --> Q["📌 Citation Validation"]
+    O --> Q
+    P --> Q
+
+    Q --> R["💬 Answer + Source Evidence"]
+    R --> B
 ```
 
-Upload flow:
+### 🧱 Architectural Components
 
-1. Validate filename, extension, size, and PDF page limit.
-2. Extract and normalize text.
-3. Split pages into overlapping approximate-token chunks.
-4. Embed chunk windows locally.
-5. Persist the original file, document metadata, parent chunks, and normalized vectors.
-6. Rebuild the FAISS index.
+| Component              | Responsibility                                                       |
+| ---------------------- | -------------------------------------------------------------------- |
+| ⚛️ React Frontend      | User interaction, document library, and question-answering workspace |
+| 🚀 FastAPI             | HTTP endpoints and request orchestration                             |
+| 📄 Extraction Module   | PDF/TXT content extraction                                           |
+| 🧩 Chunking Module     | Text normalization and chunk creation                                |
+| 🧠 Embedding Service   | Converts text into numerical vectors                                 |
+| 💾 Document Store      | Persists document metadata and vectors                               |
+| 🔍 FAISS               | Finds semantically similar chunks                                    |
+| 🧠 RAG Service         | Filters retrieval results and constructs context                     |
+| 🤖 LLM Router          | Selects a generation provider or fallback                            |
+| 📌 Citation Processing | Validates citation identifiers and formats source metadata           |
 
-Query flow:
+---
 
-1. Validate the question, document scope, top-K, and threshold. Greetings are answered without retrieval.
-2. Embed the question locally.
-3. Retrieve the nearest chunk rows, deduplicate overlapping windows, and keep candidates above the absolute similarity floor.
-4. Apply the relative cutoff against the best match, then keep the requested top-K.
-5. Build a bounded prompt from untrusted source passages.
-6. Generate with the selected LLM, or produce an extractive fallback.
-7. Validate citation IDs against the sources actually supplied.
-8. Return the answer, sources, retrieval metadata, candidate diagnostics, and generation metadata.
+## 🔬 RAG Pipeline
 
-## Quick Start
+The core of DocuMind AI is its **Retrieval-Augmented Generation pipeline**.
 
-### Prerequisites
+### 📍 Step 1 — Upload
 
-- Node.js 20 or newer
-- Python 3.11
-- npm
-- No paid API key is required
+**Module:** `backend/app/main.py`
 
-The first backend startup downloads `sentence-transformers/all-MiniLM-L6-v2` (approximately 90 MB) and loads it locally on CPU.
+The user uploads a PDF or TXT document through the frontend.
 
-### 1. Start the backend
+The backend validates the file and accepts it through:
 
-From the project root:
+`POST /api/documents`
+
+### 📍 Step 2 — Extract Text
+
+**Module:** `backend/app/extraction.py`
+
+* 📄 PDF text is extracted page by page using PyMuPDF.
+* 📝 TXT content is decoded using supported encodings.
+* 📑 Page metadata is preserved.
+* 🛑 Unsupported, encrypted, or image-only PDF inputs are rejected.
+
+### 📍 Step 3 — Normalize and Chunk
+
+**Module:** `backend/app/chunking.py`
+
+The extracted content is normalized and divided into overlapping chunks.
+
+Each page is chunked independently, helping preserve page-level source information.
+
+### 📍 Step 4 — Generate Embeddings
+
+**Module:** `backend/app/embeddings.py`
+
+The Sentence Transformers model converts each chunk into a numerical vector.
+
+**Default model:** `sentence-transformers/all-MiniLM-L6-v2`
+
+**Vector dimension:** `384`
+
+Long chunks are processed using overlapping model windows.
+
+### 📍 Step 5 — Store and Index
+
+**Module:** `backend/app/store.py`
+
+The backend stores:
+
+* 📁 Original uploaded documents.
+* 📋 Document metadata in `documents.json`.
+* 🗺️ Row-to-chunk mappings in `index.json`.
+* 🔢 Vector embeddings in `embeddings.npy`.
+
+FAISS builds an in-memory `IndexFlatIP` index from the stored vectors and reconstructs it at startup.
+
+### 📍 Step 6 — Embed the Question
+
+**Module:** `backend/app/rag.py`
+
+The submitted question is validated and converted into a vector using the embedding service.
+
+If documents are selected, retrieval is restricted to those document IDs.
+
+### 📍 Step 7 — Retrieve Relevant Passages
+
+FAISS searches for similar vectors.
+
+The retrieval process applies:
+
+* 🔎 Candidate retrieval.
+* 🧹 Duplicate chunk filtering.
+* 📊 An absolute similarity floor.
+* 🎯 A relative similarity cutoff.
+* 🔢 Top-K result selection.
+
+### 📍 Step 8 — Construct Evidence Context
+
+The RAG service builds a bounded context containing numbered passages and source metadata.
+
+The prompt instructs the generation model to answer using retrieved evidence and cite relevant sources.
+
+### 📍 Step 9 — Generate the Answer
+
+**Module:** `backend/app/llm.py`
+
+The LLM router can select an available configured provider.
+
+Depending on the configuration and availability, answering may use Ollama, an OpenAI-compatible endpoint, or an enabled extractive fallback.
+
+### 📍 Step 10 — Validate Citations
+
+The response-processing stage validates citation IDs against the supplied source list.
+
+The final response includes the answer, answerability information, source details, retrieval diagnostics, and generation metadata.
+
+### 🧠 RAG Pipeline Summary
+
+```text
+📤 Upload Document
+        ↓
+📄 Extract Text
+        ↓
+🧩 Normalize & Chunk
+        ↓
+🧠 Generate Embeddings
+        ↓
+💾 Store Vectors & Metadata
+        ↓
+❓ Receive User Question
+        ↓
+🔢 Embed Question
+        ↓
+🔍 FAISS Similarity Search
+        ↓
+📚 Retrieve Relevant Passages
+        ↓
+🧠 Construct Grounded Context
+        ↓
+🤖 Generate or Extract Answer
+        ↓
+📌 Validate Citation IDs
+        ↓
+💬 Return Answer with Sources
+```
+
+---
+
+## 📁 Project Structure
+
+```text
+documind-rag-assistant/
+│
+├── 📂 backend/
+│   ├── 📂 app/
+│   │   ├── 🐍 main.py
+│   │   ├── ⚙️ config.py
+│   │   ├── 📋 schemas.py
+│   │   ├── 📄 extraction.py
+│   │   ├── 🧩 chunking.py
+│   │   ├── 🧠 embeddings.py
+│   │   ├── 💾 store.py
+│   │   ├── 🔍 rag.py
+│   │   └── 🤖 llm.py
+│   │
+│   ├── 📂 tests/
+│   │   ├── conftest.py
+│   │   ├── test_api.py
+│   │   ├── test_chunking.py
+│   │   ├── test_extraction.py
+│   │   ├── test_store.py
+│   │   ├── test_rag.py
+│   │   └── test_llm.py
+│   │
+│   ├── 📂 data/
+│   │   ├── 📂 uploads/
+│   │   └── 📂 index/
+│   │
+│   ├── requirements.txt
+│   ├── pytest.ini
+│   └── .env.example
+│
+├── 📂 e2e/
+│   ├── landing.spec.ts
+│   └── workspace.spec.ts
+│
+├── 📂 src/
+│   ├── 📂 components/
+│   │   ├── 📂 marketing/
+│   │   ├── 📂 ui/
+│   │   └── 📂 workspace/
+│   │
+│   ├── 📂 context/
+│   │   └── WorkspaceContext.tsx
+│   │
+│   ├── 📂 hooks/
+│   │   ├── useSettings.tsx
+│   │   └── useSettings.test.ts
+│   │
+│   ├── 📂 lib/
+│   │   ├── api.ts
+│   │   ├── types.ts
+│   │   ├── llm.ts
+│   │   ├── format.ts
+│   │   └── cn.ts
+│   │
+│   ├── 📂 pages/
+│   │   ├── LandingPage.tsx
+│   │   ├── WorkspacePage.tsx
+│   │   ├── DocumentsPage.tsx
+│   │   ├── SettingsPage.tsx
+│   │   └── NotFoundPage.tsx
+│   │
+│   ├── App.tsx
+│   ├── index.css
+│   ├── main.tsx
+│   └── 📂 test/
+│
+├── 📄 index.html
+├── 📦 package.json
+├── 📦 package-lock.json
+├── ⚡ vite.config.ts
+├── 🎭 playwright.config.ts
+├── 🎨 tailwind.config.js
+├── 📝 postcss.config.js
+├── 📘 tsconfig.json
+└── 📖 README.md
+```
+
+### 📌 Important Modules
+
+| File                   | Description                                         |
+| ---------------------- | --------------------------------------------------- |
+| `main.py`              | FastAPI application and API endpoints               |
+| `extraction.py`        | PDF/TXT extraction and input validation             |
+| `chunking.py`          | Text normalization and overlapping chunks           |
+| `embeddings.py`        | Embedding model and vector generation               |
+| `store.py`             | File persistence and FAISS indexing                 |
+| `rag.py`               | Retrieval logic, prompt construction, and citations |
+| `llm.py`               | LLM provider routing and extractive fallback        |
+| `api.ts`               | Frontend API communication                          |
+| `WorkspaceContext.tsx` | Workspace state and document loading                |
+| `WorkspacePage.tsx`    | Question-answering interface                        |
+| `DocumentsPage.tsx`    | Document library and management                     |
+| `SettingsPage.tsx`     | Retrieval and provider settings                     |
+
+---
+
+## ⚙️ Installation and Setup
+
+### 📋 Prerequisites
+
+Install the following before running the application:
+
+* 🟢 Node.js 20 or newer
+* 🐍 Python 3.11
+* 📦 npm
+* 🌐 Internet access for the initial embedding-model download, unless cached
+* 🦙 Ollama, if local LLM generation is required
+
+**Note:** Ollama is optional. The default local embedding and extractive fallback workflow does not require a paid LLM API key.
+
+### 1️⃣ Clone the Repository
+
+```bash
+git clone https://github.com/riyasingh006/documind-rag-assistant.git
+
+cd documind-rag-assistant
+```
+
+### 2️⃣ Configure the Backend
+
+Navigate to the backend directory:
 
 ```powershell
 cd backend
+```
+
+Create a Python virtual environment:
+
+```powershell
 python -m venv .venv
+```
+
+Activate it:
+
+```powershell
 .\.venv\Scripts\Activate.ps1
+```
+
+Install the dependencies:
+
+```powershell
 pip install -r requirements.txt
+```
+
+Create your local environment file:
+
+```powershell
 Copy-Item .env.example .env
+```
+
+Start the FastAPI server:
+
+```powershell
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-On macOS or Linux, activate with `source .venv/bin/activate` and copy with `cp .env.example .env`. The paths in `backend/.env` are resolved relative to the backend directory.
+### 3️⃣ Configure the Frontend
 
-Check the service:
+Open a second terminal at the project root.
 
-```powershell
-Invoke-RestMethod http://127.0.0.1:8000/api/health
+Install the dependencies:
+
+```bash
+npm install
 ```
 
-Interactive API documentation is available at `http://127.0.0.1:8000/docs`.
+Start the Vite development server:
 
-### 2. Start the frontend
-
-In a second terminal, from the project root:
-
-```powershell
-npm install
+```bash
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173/workspace`.
+### 4️⃣ Open the Application
 
-For a production build:
+🌐 **Frontend**
 
-```powershell
-npm run build
-npm run preview -- --host 127.0.0.1 --port 4173
+`http://127.0.0.1:5173`
+
+💬 **Workspace**
+
+`http://127.0.0.1:5173/workspace`
+
+🚀 **Backend API**
+
+`http://127.0.0.1:8000`
+
+📚 **Interactive API Documentation**
+
+`http://127.0.0.1:8000/docs`
+
+❤️ **Health Endpoint**
+
+`http://127.0.0.1:8000/api/health`
+
+---
+
+## 🔧 Environment Configuration
+
+Backend configuration is managed through environment variables.
+
+Use `backend/.env.example` as the reference for local configuration.
+
+| Variable                            | Purpose                       |
+| ----------------------------------- | ----------------------------- |
+| `DOCUMIND_DATA_DIR`                 | Persistent data directory     |
+| `DOCUMIND_MAX_UPLOAD_MB`            | Maximum upload size           |
+| `DOCUMIND_MAX_PDF_PAGES`            | PDF page limit                |
+| `DOCUMIND_EMBEDDING_MODEL`          | Embedding model selection     |
+| `DOCUMIND_EMBEDDING_DEVICE`         | Embedding inference device    |
+| `DOCUMIND_EMBEDDING_BATCH_SIZE`     | Embedding batch size          |
+| `DOCUMIND_CHUNK_SIZE`               | Default chunk size            |
+| `DOCUMIND_CHUNK_OVERLAP`            | Chunk overlap                 |
+| `DOCUMIND_TOP_K`                    | Default retrieval count       |
+| `DOCUMIND_SCORE_THRESHOLD`          | Relative retrieval cutoff     |
+| `DOCUMIND_MIN_RELEVANCE_FLOOR`      | Minimum similarity floor      |
+| `DOCUMIND_MAX_RETRIEVAL_CANDIDATES` | Candidate retrieval limit     |
+| `DOCUMIND_MAX_CONTEXT_CHARS`        | Context character budget      |
+| `DOCUMIND_MAX_EXCERPT_CHARS`        | Displayed excerpt limit       |
+| `DOCUMIND_LLM_PROVIDER`             | Generation provider selection |
+| `DOCUMIND_LLM_TIMEOUT_SECONDS`      | Generation timeout            |
+| `DOCUMIND_LLM_TEMPERATURE`          | Generation temperature        |
+| `DOCUMIND_LLM_MAX_TOKENS`           | Generation token limit        |
+| `DOCUMIND_EXTRACTIVE_FALLBACK`      | Enables extractive fallback   |
+| `DOCUMIND_OLLAMA_BASE_URL`          | Ollama service URL            |
+| `DOCUMIND_OLLAMA_MODEL`             | Ollama model tag              |
+| `DOCUMIND_OPENAI_BASE_URL`          | OpenAI-compatible endpoint    |
+| `DOCUMIND_OPENAI_API_KEY`           | Optional API credential       |
+| `DOCUMIND_OPENAI_MODEL`             | Configured generation model   |
+| `DOCUMIND_CORS_ORIGINS`             | Allowed frontend origins      |
+| `VITE_API_URL`                      | Frontend API base URL         |
+
+The backend also recognizes `OLLAMA_BASE_URL` and `OLLAMA_MODEL` aliases.
+
+🔐 **Never commit API keys, passwords, tokens, or secret environment files to GitHub.**
+
+---
+
+## 🔌 API Reference
+
+DocuMind AI exposes a REST API through FastAPI.
+
+| Method   | Endpoint                       | Purpose                                |
+| -------- | ------------------------------ | -------------------------------------- |
+| `GET`    | `/`                            | API metadata and documentation links   |
+| `GET`    | `/api/health`                  | Service status and configuration       |
+| `GET`    | `/api/documents`               | List indexed documents                 |
+| `POST`   | `/api/documents`               | Upload and index a PDF/TXT file        |
+| `DELETE` | `/api/documents/{document_id}` | Delete a document and its vectors      |
+| `POST`   | `/api/query`                   | Ask a question using document evidence |
+
+### 📤 Upload a Document
+
+```http
+POST /api/documents
 ```
 
-The frontend calls `http://127.0.0.1:8000/api` by default. Set `VITE_API_URL` before building to use another API base.
+Accepts a multipart file upload with optional chunking parameters.
 
-### 3. Optional local LLM
+### 💬 Ask a Question
 
-The default `DOCUMIND_LLM_PROVIDER=auto` checks Ollama first. Configure the endpoint and the exact installed model tag in `backend/.env`:
-
-```dotenv
-DOCUMIND_LLM_PROVIDER=auto
-DOCUMIND_OLLAMA_BASE_URL=http://localhost:11434
-DOCUMIND_OLLAMA_MODEL=qwen2.5:3b
-DOCUMIND_LLM_TIMEOUT_SECONDS=240
-DOCUMIND_LLM_MAX_TOKENS=350
+```http
+POST /api/query
 ```
 
-```powershell
-ollama serve
-ollama pull qwen2.5:3b
-ollama list
+Supports a question, optional document IDs, `top_k`, and a retrieval threshold.
+
+The question length is limited to 2,000 characters. Up to 100 document IDs can be supplied, `top_k` ranges from 1 to 10, and the threshold ranges from 0 to 1.
+
+The response includes answer information, answerability status, source metadata, retrieval diagnostics, and generation metadata.
+
+### 🗑️ Delete a Document
+
+```http
+DELETE /api/documents/{document_id}
 ```
 
-Bare `OLLAMA_BASE_URL` and `OLLAMA_MODEL` variables are also accepted, but the `DOCUMIND_` names take precedence when both are present. The backend never pulls models automatically.
+Removes the selected document, its stored file, and associated vectors.
 
-With Ollama running and the exact configured model installed, health reports `active_provider: "ollama"`, `status: "ready"`, `ollama_connected: true`, `model_available: true`, and `generation_active: true`. If Ollama is reachable but the model is missing, health reports `status: "model_missing"` and `auto` uses the labeled extractive fallback. If Ollama is unreachable, health reports `status: "unavailable"`.
+### ⚠️ Error Handling
 
-To use an OpenAI-compatible provider instead, set these values in `backend/.env`:
+Depending on the operation, the API can return validation errors, upload-limit errors, unsupported-media errors, unavailable-service responses, or provider-generation errors.
 
-```dotenv
-DOCUMIND_LLM_PROVIDER=openai
-DOCUMIND_OPENAI_BASE_URL=https://api.openai.com/v1
-DOCUMIND_OPENAI_API_KEY=your-key
-DOCUMIND_OPENAI_MODEL=gpt-4o-mini
-```
+The API does not currently implement authentication, authorization, or streaming responses.
 
-When an external provider is configured, retrieved document excerpts are sent to that provider. Use Ollama or extractive mode if documents must remain entirely local.
+---
 
-## Configuration
+## 🧪 Testing and Quality Assurance
 
-All backend settings use the `DOCUMIND_` prefix. See `backend/.env.example` for the complete list.
+DocuMind AI includes multiple testing layers.
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `DOCUMIND_DATA_DIR` | `backend/data` | Root directory for uploaded files and index state |
-| `DOCUMIND_MAX_UPLOAD_MB` | `20` | Maximum upload size |
-| `DOCUMIND_MAX_PDF_PAGES` | `500` | Maximum pages accepted from a PDF |
-| `DOCUMIND_EMBEDDING_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` | Local embedding model |
-| `DOCUMIND_EMBEDDING_DEVICE` | `cpu` | `cpu`, `cuda`, or another sentence-transformers device |
-| `DOCUMIND_CHUNK_SIZE` | `800` | Default approximate tokens per chunk |
-| `DOCUMIND_CHUNK_OVERLAP` | `120` | Default overlap between chunks |
-| `DOCUMIND_TOP_K` | `5` | Default number of parent chunks retrieved |
-| `DOCUMIND_SCORE_THRESHOLD` | `0.2` | Default relative cutoff against the best match |
-| `DOCUMIND_MIN_RELEVANCE_FLOOR` | `0.15` | Absolute cosine similarity floor for any candidate |
-| `DOCUMIND_MAX_RETRIEVAL_CANDIDATES` | `50` | Maximum candidates inspected before the relative cutoff |
-| `DOCUMIND_MAX_CONTEXT_CHARS` | `12000` | Maximum source text budget for a prompt |
-| `DOCUMIND_MAX_EXCERPT_CHARS` | `1600` | Maximum excerpt length returned to the UI |
-| `DOCUMIND_LLM_PROVIDER` | `auto` | `auto`, `ollama`, `openai`, or `extractive` |
-| `DOCUMIND_LLM_TIMEOUT_SECONDS` | `240` | LLM request timeout |
-| `DOCUMIND_LLM_TEMPERATURE` | `0.1` | LLM sampling temperature |
-| `DOCUMIND_LLM_MAX_TOKENS` | `350` | Maximum generated tokens |
-| `DOCUMIND_EXTRACTIVE_FALLBACK` | `true` | Permit labeled fallback answers |
-| `DOCUMIND_OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama endpoint; bare `OLLAMA_BASE_URL` also accepted |
-| `DOCUMIND_OLLAMA_MODEL` | `qwen2.5:3b` | Exact Ollama model tag; bare `OLLAMA_MODEL` also accepted |
-| `DOCUMIND_OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible endpoint |
-| `DOCUMIND_OPENAI_API_KEY` | empty | Enables the external provider when set |
-| `DOCUMIND_OPENAI_MODEL` | `gpt-4o-mini` | External model name |
-| `DOCUMIND_CORS_ORIGINS` | local ports | Comma-separated allowed browser origins |
+### 🐍 Backend Testing
 
-Retrieval settings in the web UI are stored in the browser and are sent with uploads and queries. They do not rewrite backend environment defaults.
+**Framework:** pytest
 
-The UI cutoff is relative: a passage must score at least the selected percentage of the best match. For example, a 48% cutoff with a best score of `0.468` keeps passages scoring at least `0.225`, while the absolute floor still rejects unrelated queries whose best score is below `0.15`. This avoids treating raw MiniLM cosine similarity as a calibrated percentage.
+Test directory:
 
-## API
+`backend/tests/`
 
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/api/health` | Embedding, LLM, collection, limit, and default health |
-| `GET` | `/api/documents` | List indexed documents |
-| `POST` | `/api/documents` | Upload a PDF/TXT with optional chunk fields |
-| `DELETE` | `/api/documents/{id}` | Delete a document and its vectors |
-| `POST` | `/api/query` | Retrieve evidence and answer a question |
+Coverage includes:
 
-Example query:
+* 📄 PDF/TXT extraction and validation.
+* 🧩 Chunking and overlap.
+* 💾 Persistence, reload, and deletion.
+* 🔍 FAISS search and document scoping.
+* 🧠 RAG prompt construction.
+* 📌 Citation validation.
+* 🤖 LLM provider routing.
+* 🛑 Timeout and provider failure handling.
+* 🌐 API validation, upload limits, and CORS.
 
-```powershell
-$body = @{
-  question = "What is the evaluation identifier?"
-  top_k = 5
-  threshold = 0.2
-} | ConvertTo-Json
+Run backend tests from the backend directory:
 
-Invoke-RestMethod `
-  -Method Post `
-  -Uri http://127.0.0.1:8000/api/query `
-  -ContentType "application/json" `
-  -Body $body
-```
-
-Responses include:
-
-- `answer` and `answerable`
-- `reason`: `answered`, `insufficient_evidence`, `no_documents`, or `greeting`
-- `sources`: document ID, filename, page, chunk ID, chunk index, excerpt, similarity score, and whether each source was cited
-- `retrieval`: top-K, relative threshold, candidates considered, candidates passed, top score, effective cutoff, absolute floor, chunks used, searched documents, and latency
-- `generation`: provider, model, `llm` / `extractive` / `none`, latency, and fallback reason
-- `health.llm`: configured provider, active provider, exact Ollama model, Ollama connectivity, model availability, generation state, and a status such as `ready`, `model_missing`, `unavailable`, `fallback`, `extractive`, or `not_configured`
-
-Backend retrieval diagnostics are logged at `INFO` level with candidate counts, cutoff values, top score, and the number of passages placed in the prompt. The full question is truncated to 80 characters in logs.
-
-## Testing
-
-### Backend
-
-From `backend/`:
-
-```powershell
+```bash
 python -m pytest
 ```
 
-The suite uses a deterministic fake embedder and mock HTTP transports, so it does not download models or require network access. It covers chunking, TXT/PDF extraction, persistence, FAISS search and scoping, deletion, re-embedding compatibility, prompts, citation validation, extractive fallback, LLM failure handling, relative cutoff and absolute-floor behavior, retrieval diagnostics, greeting bypass, Ollama connectivity, exact model-tag verification, missing-model and unavailable-provider states, generation timeouts, upload limits, API validation, CORS, and the complete upload/query/delete flow.
+### ⚛️ Frontend Unit Testing
 
-Current result: **70 passed**.
+**Frameworks:** Vitest, Testing Library, and jsdom.
 
-### Frontend unit tests
+Relevant files:
 
-From the project root:
+* `src/hooks/useSettings.test.ts`
+* `src/lib/format.test.ts`
 
-```powershell
-npm test
-```
+Use the test script defined in `package.json`.
 
-Current result: **10 passed**.
+### 🎭 End-to-End Testing
 
-### Browser tests
+**Framework:** Playwright
 
-Start the backend first, then from the project root:
+Test files:
 
-```powershell
-npm run build
-npm run test:e2e
-```
+* `e2e/landing.spec.ts`
+* `e2e/workspace.spec.ts`
 
-Playwright reuses an existing preview server on port `4173` or starts one that serves the current `dist/` build. The desktop suite covers the full upload, ask, cite, greeting, and delete flow plus settings persistence. The mobile suite covers navigation, dialogs, route changes, and horizontal overflow. Landing tests run at desktop and mobile sizes.
+The suite targets desktop and mobile Chromium configurations.
 
-Current result: **8 passed, 4 skipped**. The skips are intentional project-specific cases: desktop-only flows are skipped on mobile, and mobile-only checks are skipped on desktop.
+### 📊 Previously Recorded Test Results
 
-### Production build
+| Test Suite          | Historical Result                                 |
+| ------------------- | ------------------------------------------------- |
+| Backend tests       | ✅ 70 passed                                       |
+| Frontend unit tests | ✅ 10 passed                                       |
+| Playwright          | ✅ 8 passed, 4 skipped                             |
+| TypeScript/build    | ✅ Passed, with a non-blocking bundle-size warning |
 
-```powershell
-npm run typecheck
-npm run build
-```
+⚠️ These results were recorded before later UI edits and have not been re-verified against the current project state.
 
-Both pass. Vite reports a non-blocking warning that the main JavaScript bundle is slightly above 500 kB.
+---
 
-## Data and Privacy
+## 🔐 Security and Privacy
 
-- Uploaded files and index data are stored under `backend/data/uploads` and `backend/data/index`.
-- Vectors are normalized before being written and used with FAISS inner product, which is equivalent to cosine similarity.
-- Documents are processed locally.
-- Ollama runs locally.
-- With an OpenAI-compatible provider, retrieved passages and questions are sent to that external service.
-- The API has no authentication and is intended for local use only. Do not expose it to an untrusted network or bind it to a public interface.
-- Uploaded content is not encrypted at rest by this application.
-- Retrieved passages are treated as untrusted input and wrapped in delimiters, but prompt-injection defenses cannot be guaranteed against every model or document.
+DocuMind AI is intended primarily for local, trusted environments.
 
-## Limitations
+### 🛡️ Current Design
 
-- Only PDF and TXT uploads are supported.
-- Scanned or image-only PDFs are rejected because OCR is not included.
-- Maximum upload size is 20 MB by default and PDFs are limited to 500 pages by default.
-- The default embedding model has a 256-token sequence window; longer chunks are embedded as overlapping windows and deduplicated during retrieval.
-- There is no authentication, user isolation, sharing, or document-level access control.
-- There is no reranking model, hybrid keyword search, streaming response, or background ingestion queue.
-- Retrieval quality depends on the embedding model. The UI exposes a relative cutoff and an absolute similarity floor so users can inspect behavior and reject unrelated material without discarding broad but relevant questions.
-- The workspace is optimized for current desktop and mobile Chromium; other browsers were not part of the automated browser matrix.
-- There is no Docker configuration.
+* 🖥️ Embeddings run locally by default.
+* 📁 Uploaded files and index data are stored on the local backend filesystem.
+* 🔒 The browser does not call Ollama directly.
+* ⚙️ Provider credentials are configured on the backend.
+* 🌐 An external OpenAI-compatible provider, if enabled, receives the question and retrieved excerpts needed for generation.
 
-## Troubleshooting
+### ⚠️ Important Security Considerations
 
-### Backend is offline in the workspace
+* Authentication and authorization are not implemented.
+* There is no multi-user document isolation.
+* Uploaded files and index data are not encrypted at rest by the application.
+* Rate limiting is not implemented.
+* Prompt-injection protections are limited and cannot guarantee complete protection.
+* The API should not be exposed to untrusted networks without appropriate security controls.
 
-Confirm `http://127.0.0.1:8000/api/health` responds and that the API is using port `8000`. The UI shows a backend-offline state instead of silently failing.
+---
 
-### Embedding model is not ready
+## ⚠️ Current Limitations
 
-Check the backend terminal for model download or dependency errors, then inspect `/api/health`. The first startup requires network access to download the model unless it is already cached.
+| Area               | Limitation                                                      |
+| ------------------ | --------------------------------------------------------------- |
+| 📄 File formats    | PDF and TXT only                                                |
+| 🖼️ OCR            | Scanned/image-only PDFs are unsupported                         |
+| 👤 Authentication  | No user accounts or authorization                               |
+| 💾 Persistence     | Filesystem-based, without a database                            |
+| 🔍 Retrieval       | Exact FAISS search; no hybrid search or reranking               |
+| 💬 Generation      | Depends on configured provider availability                     |
+| 📌 Citations       | Identifier validation does not guarantee factual accuracy       |
+| 🔄 Concurrency     | Filesystem store is best suited to a single backend process     |
+| 📡 Streaming       | Not implemented                                                 |
+| 🐳 Deployment      | Docker and production deployment configuration are not included |
+| 🌐 Browser testing | Chromium-focused                                                |
+| ♿ Accessibility    | Full WCAG and contrast audit not completed                      |
 
-### Answers say “Extractive answer from the retrieved passages”
+---
 
-No LLM generation completed. Check `/api/health` before assuming Ollama itself is down:
+## 🚀 Future Enhancements
 
-- `status: "unavailable"` means the Ollama API is not reachable. Run `ollama serve` and confirm `Invoke-RestMethod http://localhost:11434/api/tags`.
-- `status: "model_missing"` means Ollama is reachable but the exact configured tag is absent. Run `ollama pull qwen2.5:3b`.
-- If generation times out, the backend falls back only when `auto` plus `DOCUMIND_EXTRACTIVE_FALLBACK=true` are configured. Increase `DOCUMIND_LLM_TIMEOUT_SECONDS`, reduce `DOCUMIND_LLM_MAX_TOKENS`, or use a smaller model. The UI always labels extractive output and never claims it came from the LLM.
+The following are potential improvements, not currently implemented features.
 
-### Verify grounded Ollama answers
+* 🖼️ OCR support for scanned PDFs.
+* 📄 Support for DOCX and Markdown documents.
+* 👤 Authentication and user-specific document permissions.
+* 🔎 Hybrid keyword and semantic retrieval.
+* 🎯 Cross-encoder reranking.
+* ⚡ Streaming answer generation.
+* 🔄 Background document ingestion.
+* 🗄️ Database-backed metadata persistence.
+* 🐳 Docker-based deployment.
+* 📊 Retrieval evaluation and citation-quality metrics.
+* ♿ Expanded accessibility testing.
+* 🛡️ Production-grade rate limiting and authorization.
 
-```powershell
-Invoke-RestMethod http://127.0.0.1:8000/api/health |
-  Select-Object -ExpandProperty llm
-```
+---
 
-Then ask a question scoped to an uploaded document and confirm `generation.mode` is `llm`, `generation.provider` is `ollama`, and every `sources[].chunk_id` belongs to a retrieved chunk. A reachable Ollama server alone does not prove retrieval succeeded; the API returns insufficient evidence without calling the LLM when no passage clears retrieval.
+## 🤝 Contributing
 
-### Upload returns “No extractable text”
+Contributions, suggestions, and bug reports are welcome! 💙
 
-The PDF may be scanned or image-only. OCR is not included.
+1. 🍴 Fork the repository.
+2. 🌿 Create a feature branch.
+3. 💻 Make your changes.
+4. 🧪 Run relevant tests.
+5. 📬 Submit a pull request with a clear description.
 
-### Relevance is poor
+Please avoid committing generated files, local document data, credentials, or environment files.
 
-Inspect the evidence panel: it separates candidates above the absolute floor, passages that passed the relative cutoff, passages placed in the prompt, and cited passages. If the top match is below the floor, the question and document may use different vocabulary; try rephrasing with terms from the document or confirm the selected scope. Adjust chunk size, overlap, top-K, or relative cutoff in Settings. Smaller chunks can improve precision; larger chunks preserve more context. Re-upload documents after changing chunking because chunking happens during ingestion.
+---
 
-## Project Structure
+## 📜 License
 
-```text
-.
-|-- backend/
-|   |-- app/
-|   |   |-- main.py          FastAPI app, endpoints, lifespan
-|   |   |-- config.py        Environment settings and paths
-|   |   |-- schemas.py       Request and response models
-|   |   |-- extraction.py    TXT/PDF extraction and filename validation
-|   |   |-- chunking.py      Token-aware overlapping chunks
-|   |   |-- embeddings.py    Local MiniLM embeddings and windowing
-|   |   |-- store.py         Persistence, FAISS index, search, deletion
-|   |   |-- rag.py           Retrieval, prompts, citation validation
-|   |   `-- llm.py           Ollama/OpenAI clients, routing, extractive fallback
-|   |-- tests/               Deterministic backend tests
-|   |-- data/                Runtime uploads and index state
-|   |-- requirements.txt
-|   `-- .env.example
-|-- e2e/                     Playwright landing and workspace tests
-|-- src/
-|   |-- components/          Marketing, workspace, and UI components
-|   |-- context/             Workspace data and health context
-|   |-- hooks/               Retrieval settings and tests
-|   |-- lib/                 API client, types, formatting, tests
-|   `-- pages/               Landing, workspace, documents, settings, 404
-|-- tailwind.config.js
-|-- vite.config.ts
-`-- playwright.config.ts
-```
+A license has not been verified in the project files.
+
+Choose and add an appropriate license before publishing a license badge or making specific claims about reuse permissions.
+
+---
+
+<div align="center">
+
+### 💙 Built to Make Document Understanding Smarter
+
+**DocuMind AI — Your Documents. Your Questions. Evidence-Based Answers.**
+
+🧠 React · TypeScript · FastAPI · Sentence Transformers · FAISS
+
+⭐ If you find this project interesting, consider starring the repository!
+
+</div>
