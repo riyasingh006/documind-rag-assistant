@@ -69,13 +69,21 @@ class EmbeddingService:
                     f"available: {self.error}"
                 ) from exc
 
-    def _require_model(self):
-        if self._model is None:
-            raise EmbeddingError(
-                "The embedding model is not ready. See the server logs and "
-                "/api/health for details."
-            )
-        return self._model
+def _require_model(self):
+    if self._model is None:
+        try:
+            self.load()
+        except EmbeddingError:
+            raise
+
+    if self._model is None:
+        raise EmbeddingError(
+            "The embedding model is not ready. See the server logs and "
+            "/api/health for details."
+        )
+
+    return self._model
+    
 
     def _windows_for_text(self, text: str) -> list[str]:
         self._require_model()
