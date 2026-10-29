@@ -57,10 +57,6 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         embedding_service = embedder or EmbeddingService(configuration)
-        try:
-           await asyncio.to_thread(embedding_service.load)
-        except Exception as exc:  # model startup failure should not crash the API
-            logger.warning("Embedding model failed to load: %s", exc)
 
         store = DocumentStore(configuration, embedding_service)
         if embedding_service.ready:
