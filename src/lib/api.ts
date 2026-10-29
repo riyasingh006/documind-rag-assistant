@@ -6,10 +6,10 @@ import type {
 } from "./types";
 
 const configuredBase = import.meta.env.VITE_API_URL as string | undefined;
-export const API_BASE = (configuredBase ?? "http://127.0.0.1:8000/api").replace(
-  /\/+$/,
-  "",
-);
+
+export const API_BASE = (
+  configuredBase ?? "https://documind-rag-assistant-api.onrender.com/api"
+).replace(/\/+$/, "");
 
 export class ApiError extends Error {
   status: number;
