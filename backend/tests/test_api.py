@@ -421,6 +421,26 @@ def test_upload_and_query_recover_after_failed_startup_load(settings) -> None:
         assert answer.status_code == 200
 
 
+def test_upload_returns_503_for_temporary_gemini_embedding_failure(settings) -> None:
+    from fastapi.testclient import TestClient
+
+    from app.embeddings import EmbeddingError
+    from app.main import create_app
+    from tests.conftest import FakeEmbedder
+
+    class TemporaryFailure(FakeEmbedder):
+        def embed_chunks(self, texts):
+            raise EmbeddingError("Gemini embeddings remained temporarily unavailable (HTTP 503).")
+
+    with TestClient(
+        create_app(settings=settings, embedder=TemporaryFailure())
+    ) as test_client:
+        response = upload(test_client, "a.txt", b"Temporary embedding failures are recoverable. " * 10)
+
+    assert response.status_code == 503
+    assert "temporarily unavailable" in response.json()["detail"]
+
+
 def test_upload_returns_503_when_embedding_keeps_failing(settings) -> None:
     from fastapi.testclient import TestClient
 

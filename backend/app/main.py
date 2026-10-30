@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .chunking import chunk_pages
 from .config import ALLOWED_EXTENSIONS, Settings
-from .embeddings import EmbeddingService
+from .embeddings import EmbeddingError, EmbeddingService
 from .extraction import (
     ExtractionError,
     extract_document,
@@ -300,6 +300,8 @@ def create_app(
             summary = await asyncio.to_thread(
                 store.add_document, extraction, text_chunks, data
             )
+        except EmbeddingError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         except StoreError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
