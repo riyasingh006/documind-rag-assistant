@@ -12,6 +12,11 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    watch: {
+      // The Python backend (and its virtualenv) is not part of the frontend
+      // bundle; watching it can exhaust the OS file-watcher limit (ENOSPC).
+      ignored: ["**/backend/**", "**/dist/**", "**/test-results/**"],
+    },
     proxy: {
       "/api": {
         target: "http://127.0.0.1:8000",
