@@ -1,286 +1,205 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from pathlib import Path
 
 import httpx
 import pytest
 
 from app.config import Settings
 from app.llm import (
+    GeminiClient,
     LLMGenerationError,
-    LLMUnavailableError,
     LLMRouter,
-    OllamaClient,
+    LLMUnavailableError,
 )
 
 
 def make_settings(**overrides) -> Settings:
     values = {
-        "llm_provider": "auto",
-        "ollama_base_url": "http://ollama.test",
-        "ollama_model": "qwen2.5:3b",
-        "llm_timeout_seconds": 5,
-        "extractive_fallback": True,
+        "data_dir": Path("/tmp/documind-llm-tests"),
+        "gemini_api_key": "gemini-test-secret",
+        "llm_provider": "gemini",
+        "llm_model": "gemini-3.8-flash",
+        "llm_timeout_seconds": 1.0,
+        "llm_retry_budget_seconds": 5.0,
     }
     values.update(overrides)
-    return Settings(_env_file=None, **values)
+    return Settings(**values)
 
 
-def tags_transport(names: list[str]) -> httpx.MockTransport:
+def candidate_response(text: str) -> dict:
+    return {"candidates": [{"content": {"parts": [{"text": text}]}}]}
+
+
+def test_gemini_uses_official_generate_content_request() -> None:
+    seen: list[httpx.Request] = []
+
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/api/tags"
-        return httpx.Response(
-            200,
-            json={"models": [{"name": name} for name in names]},
+        seen.append(request)
+        return httpx.Response(200, json=candidate_response('{"answer":"Alpha [1]"}'))
+
+    client = GeminiClient(
+        make_settings(),
+        transport=httpx.MockTransport(handler),
+    )
+    result = asyncio.run(client.generate("system rules", "question and evidence"))
+
+    assert result == '{"answer":"Alpha [1]"}'
+    assert len(seen) == 1
+    request = seen[0]
+    assert request.url.host == "generativelanguage.googleapis.com"
+    assert request.url.path == "/v1beta/models/gemini-3.8-flash:generateContent"
+    assert request.headers["x-goog-api-key"] == "gemini-test-secret"
+    payload = json.loads(request.content)
+    assert payload["systemInstruction"]["parts"][0]["text"] == "system rules"
+    assert payload["contents"][0]["parts"][0]["text"] == "question and evidence"
+    assert payload["generationConfig"]["responseMimeType"] == "application/json"
+    assert payload["generationConfig"]["responseSchema"]["required"] == [
+        "answerable",
+        "answer",
+        "citation_ids",
+    ]
+
+
+def test_gemini_retries_transient_http_failure_then_recovers() -> None:
+    calls = 0
+    delays: list[float] = []
+
+    async def no_wait(delay: float) -> None:
+        delays.append(delay)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(503, headers={"Retry-After": "1"})
+        return httpx.Response(200, json=candidate_response('{"answerable":true}'))
+
+    client = GeminiClient(
+        make_settings(),
+        transport=httpx.MockTransport(handler),
+        sleep=no_wait,
+    )
+
+    assert asyncio.run(client.generate("sys", "prompt")) == '{"answerable":true}'
+    assert calls == 2
+    assert delays == [1.0]
+    assert client.last_error is None
+
+
+def test_gemini_retries_connection_errors_with_a_bounded_attempt_count() -> None:
+    calls = 0
+    delays: list[float] = []
+
+    async def no_wait(delay: float) -> None:
+        delays.append(delay)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        raise httpx.ConnectTimeout("temporary", request=request)
+
+    client = GeminiClient(
+        make_settings(),
+        transport=httpx.MockTransport(handler),
+        sleep=no_wait,
+    )
+
+    with pytest.raises(LLMGenerationError, match="configured retry time limit"):
+        asyncio.run(client.generate("sys", "prompt"))
+    assert calls == 3
+    assert len(delays) == 2
+
+
+def test_gemini_does_not_retry_authentication_errors_or_leak_the_key() -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(403, json={"error": {"message": "forbidden"}})
+
+    client = GeminiClient(
+        make_settings(),
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(LLMGenerationError, match="API key or its permissions") as error:
+        asyncio.run(client.generate("sys", "prompt"))
+    assert calls == 1
+    assert "gemini-test-secret" not in str(error.value)
+
+
+def test_gemini_rejects_invalid_or_empty_responses() -> None:
+    responses = [
+        httpx.Response(200, content=b"not-json"),
+        httpx.Response(200, json={"candidates": []}),
+        httpx.Response(200, json={"candidates": [{"content": {"parts": []}}]}),
+    ]
+    for response in responses:
+        client = GeminiClient(
+            make_settings(),
+            transport=httpx.MockTransport(lambda request, item=response: item),
         )
-
-    return httpx.MockTransport(handler)
-
-
-def test_ollama_connects_and_verifies_exact_model() -> None:
-    settings = make_settings()
-    transport = tags_transport(["qwen2.5:3b", "llama3.2:latest"])
-    state = asyncio.run(
-        OllamaClient(settings, transport=transport).check_availability()
-    )
-
-    assert state.reachable is True
-    assert state.model_available is True
-    assert state.usable is True
-    assert "qwen2.5:3b" in state.detail
+        with pytest.raises(LLMGenerationError):
+            asyncio.run(client.generate("sys", "prompt"))
 
 
-def test_ollama_does_not_accept_a_different_model_tag() -> None:
-    settings = make_settings()
-    transport = tags_transport(["qwen2.5:7b"])
-    state = asyncio.run(
-        OllamaClient(settings, transport=transport).check_availability()
-    )
-
-    assert state.reachable is True
-    assert state.model_available is False
-    assert "not installed" in state.detail
-    assert "ollama pull qwen2.5:3b" in state.detail
-
-
-def test_ollama_accepts_implicit_latest_tag() -> None:
-    settings = make_settings(ollama_model="qwen2.5")
-    transport = tags_transport(["qwen2.5:latest"])
-    state = asyncio.run(
-        OllamaClient(settings, transport=transport).check_availability()
-    )
-
-    assert state.model_available is True
-
-
-def test_ollama_unreachable_is_reported() -> None:
-    settings = make_settings()
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("connection refused", request=request)
-
-    state = asyncio.run(
-        OllamaClient(
-            settings, transport=httpx.MockTransport(handler)
-        ).check_availability()
-    )
-
-    assert state.reachable is False
-    assert state.model_available is False
-    assert "not reachable" in state.detail
-
-
-def test_ollama_generate_returns_content() -> None:
-    settings = make_settings()
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/api/chat"
-        return httpx.Response(
-            200,
-            json={"message": {"content": '{"answerable": true}'}},
-        )
-
-    client = OllamaClient(settings, transport=httpx.MockTransport(handler))
-    result = asyncio.run(client.generate("system", "prompt"))
-    assert result == '{"answerable": true}'
-
-
-def test_ollama_generate_reports_missing_model() -> None:
-    settings = make_settings()
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(404, json={"error": "model not found"})
-
-    client = OllamaClient(settings, transport=httpx.MockTransport(handler))
-    with pytest.raises(LLMGenerationError, match="not available"):
-        asyncio.run(client.generate("system", "prompt"))
-
-
-def test_ollama_generate_timeout_is_reported() -> None:
-    settings = make_settings(llm_timeout_seconds=1)
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ReadTimeout("timed out", request=request)
-
-    client = OllamaClient(settings, transport=httpx.MockTransport(handler))
-    with pytest.raises(LLMGenerationError, match="did not respond"):
-        asyncio.run(client.generate("system", "prompt"))
-
-
-def test_router_auto_uses_ollama_when_model_is_available() -> None:
+def test_router_uses_gemini_when_configured() -> None:
     settings = make_settings()
     router = LLMRouter(settings)
-    router.ollama = OllamaClient(
-        settings,
-        transport=tags_transport(["qwen2.5:3b"]),
-    )
 
-    resolved = asyncio.run(router.resolve(force_check=True))
-    status = asyncio.run(router.describe())
+    resolved = asyncio.run(router.resolve())
+    health = asyncio.run(router.describe())
 
-    assert resolved.provider == "ollama"
-    assert resolved.client is not None
-    assert status["status"] == "ready"
-    assert status["ollama_connected"] is True
-    assert status["model_available"] is True
-    assert status["generation_active"] is True
-    assert status["ollama_model"] == "qwen2.5:3b"
+    assert resolved.provider == "gemini"
+    assert resolved.model == "gemini-3.8-flash"
+    assert resolved.client is router.gemini
+    assert health["active_provider"] == "gemini"
+    assert health["status"] == "configured"
 
 
-def test_router_auto_falls_back_when_model_is_missing() -> None:
-    settings = make_settings()
-    router = LLMRouter(settings)
-    router.ollama = OllamaClient(
-        settings,
-        transport=tags_transport(["llama3.2:latest"]),
-    )
+def test_router_uses_extractively_labelled_fallback_without_a_key() -> None:
+    router = LLMRouter(make_settings(gemini_api_key=None))
 
-    resolved = asyncio.run(router.resolve(force_check=True))
-    status = asyncio.run(router.describe())
+    resolved = asyncio.run(router.resolve())
+    health = asyncio.run(router.describe())
 
     assert resolved.provider == "extractive"
     assert resolved.client is None
-    assert "qwen2.5:3b" in (resolved.fallback_reason or "")
-    assert status["status"] == "model_missing"
-    assert status["active_provider"] == "extractive"
-    assert status["ollama_connected"] is True
-    assert status["model_available"] is False
-    assert status["generation_active"] is False
+    assert "not configured" in (resolved.fallback_reason or "")
+    assert health["status"] == "fallback"
+    assert health["generation_active"] is False
 
 
-def test_router_explicit_ollama_missing_model_raises() -> None:
-    settings = make_settings(llm_provider="ollama")
-    router = LLMRouter(settings)
-    router.ollama = OllamaClient(
-        settings,
-        transport=tags_transport(["llama3.2:latest"]),
+def test_router_rejects_missing_key_when_fallback_is_disabled() -> None:
+    router = LLMRouter(
+        make_settings(gemini_api_key=None, extractive_fallback=False)
     )
 
-    with pytest.raises(LLMUnavailableError, match="qwen2.5:3b"):
-        asyncio.run(router.resolve(force_check=True))
-
-
-def test_router_reports_unreachable_ollama() -> None:
-    settings = make_settings()
-    router = LLMRouter(settings)
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("connection refused", request=request)
-
-    router.ollama = OllamaClient(
-        settings,
-        transport=httpx.MockTransport(handler),
-    )
-    status = asyncio.run(router.describe())
-
-    assert status["status"] == "unavailable"
-    assert status["ollama_connected"] is False
-    assert status["generation_active"] is False
-    assert status["active_provider"] == "extractive"
-
-
-def test_ollama_alias_environment_variables(monkeypatch) -> None:
-    monkeypatch.delenv("DOCUMIND_OLLAMA_MODEL", raising=False)
-    monkeypatch.delenv("DOCUMIND_OLLAMA_BASE_URL", raising=False)
-    monkeypatch.setenv("OLLAMA_MODEL", "alias-model:1b")
-    monkeypatch.setenv("OLLAMA_BASE_URL", "http://alias-host:11434")
-
-    settings = Settings(_env_file=None)
-
-    assert settings.ollama_model == "alias-model:1b"
-    assert settings.ollama_base_url == "http://alias-host:11434"
-
-
-# --- OpenAI-compatible (hosted) provider -------------------------------------
-# Ollama cannot run on typical PaaS hosts, so the hosted deployment relies on
-# this path. These tests cover routing and request/response handling.
-
-from app.llm import OpenAICompatibleClient  # noqa: E402
-
-
-def _unreachable_ollama(settings: Settings) -> OllamaClient:
-    def handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("connection refused", request=request)
-
-    return OllamaClient(settings, transport=httpx.MockTransport(handler))
-
-
-def test_router_auto_uses_openai_when_ollama_unreachable() -> None:
-    settings = make_settings(openai_api_key="test-key", openai_model="m")
-    router = LLMRouter(settings)
-    router.ollama = _unreachable_ollama(settings)
-
-    resolved = asyncio.run(router.resolve(force_check=True))
-    status = asyncio.run(router.describe())
-
-    assert resolved.provider == "openai"
-    assert resolved.client is not None
-    assert status["status"] == "ready"
-    assert status["generation_active"] is True
-
-
-def test_router_explicit_openai_without_key_raises() -> None:
-    router = LLMRouter(make_settings(llm_provider="openai"))
-    with pytest.raises(LLMUnavailableError, match="OPENAI_API_KEY"):
+    with pytest.raises(LLMUnavailableError, match="not configured"):
         asyncio.run(router.resolve())
+    assert asyncio.run(router.describe())["status"] == "not_configured"
 
 
-def test_openai_client_sends_auth_and_parses_answer(monkeypatch) -> None:
-    seen: dict = {}
+def test_router_supports_explicit_extractive_mode() -> None:
+    router = LLMRouter(make_settings(llm_provider="extractive"))
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        seen["auth"] = request.headers.get("authorization")
-        seen["url"] = str(request.url)
-        return httpx.Response(
-            200,
-            json={"choices": [{"message": {"content": " hello [1] "}}]},
-        )
+    resolved = asyncio.run(router.resolve())
+    health = asyncio.run(router.describe())
 
-    settings = make_settings(
-        openai_api_key="test-key",
-        openai_base_url="https://llm.example.test/v1/",
-    )
-    client = OpenAICompatibleClient(settings)
-    monkeypatch.setattr(
-        client,
-        "_http",
-        lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler)),
-    )
-
-    assert asyncio.run(client.generate("sys", "prompt")) == "hello [1]"
-    assert seen["auth"] == "Bearer test-key"
-    assert seen["url"] == "https://llm.example.test/v1/chat/completions"
+    assert resolved.provider == "extractive"
+    assert health["status"] == "extractive"
 
 
-def test_openai_client_maps_http_errors(monkeypatch) -> None:
-    settings = make_settings(openai_api_key="bad-key")
-    client = OpenAICompatibleClient(settings)
-    monkeypatch.setattr(
-        client,
-        "_http",
-        lambda: httpx.AsyncClient(
-            transport=httpx.MockTransport(lambda r: httpx.Response(401))
-        ),
-    )
-    with pytest.raises(LLMGenerationError, match="401"):
-        asyncio.run(client.generate("sys", "prompt"))
+def test_router_reports_last_gemini_failure_without_claiming_availability() -> None:
+    router = LLMRouter(make_settings())
+    router.gemini.last_error = "Gemini remained temporarily unavailable (HTTP 503)."
+
+    health = asyncio.run(router.describe())
+
+    assert health["status"] == "temporarily_unavailable"
+    assert health["available"] is False
+    assert "HTTP 503" in health["detail"]

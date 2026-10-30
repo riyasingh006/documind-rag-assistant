@@ -601,7 +601,7 @@ class RAGService:
                 raw = await resolved.client.generate(SYSTEM_PROMPT, prompt)
                 answerable, answer, proposed_ids = parse_llm_output(raw)
             except LLMGenerationError as exc:
-                if resolved.automatic and self.settings.extractive_fallback:
+                if self.settings.extractive_fallback:
                     provider = "extractive"
                     model = "extractive fallback"
                     mode = "extractive"

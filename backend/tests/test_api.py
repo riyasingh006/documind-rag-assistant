@@ -55,7 +55,6 @@ def test_root_and_health(client) -> None:
     assert body["llm"]["available"] is False
     assert body["llm"]["status"] == "extractive"
     assert body["llm"]["generation_active"] is False
-    assert body["llm"]["ollama_model"] == "qwen2.5:3b"
     assert body["counts"] == {"documents": 0, "chunks": 0, "index_vectors": 0}
     assert body["limits"]["allowed_extensions"] == ["pdf", "txt"]
     assert body["limits"]["max_upload_mb"] == 1

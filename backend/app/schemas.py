@@ -41,15 +41,10 @@ class LLMHealth(BaseModel):
     available: bool
     fallback_enabled: bool
     detail: str | None
-    ollama_base_url: str | None = None
-    ollama_model: str | None = None
-    ollama_connected: bool | None = None
-    model_available: bool | None = None
     generation_active: bool = False
     status: Literal[
-        "ready",
-        "model_missing",
-        "unavailable",
+        "configured",
+        "temporarily_unavailable",
         "fallback",
         "extractive",
         "not_configured",
