@@ -103,6 +103,28 @@ def test_health_reports_loading_state_without_error(tmp_path) -> None:
     assert body["runtime"]["embedding_state"] == "loading"
 
 
+def test_health_reports_unusable_persisted_index(tmp_path, settings, add_text) -> None:
+    add_text("Persisted text that requires a Gemini embedding index.")
+
+    class BrokenEmbedder(FakeEmbedder):
+        ready = False
+        error = "Gemini API key is missing."
+
+        def load(self) -> None:
+            raise RuntimeError(self.error)
+
+    with TestClient(
+        create_app(settings=settings, embedder=BrokenEmbedder())
+    ) as client:
+        body = client.get("/api/health").json()
+
+    assert body["status"] == "degraded"
+    assert body["embedding"]["ready"] is False
+    assert body["index"]["state"] == "failed"
+    assert body["index"]["ready"] is False
+    assert body["index"]["error"]
+
+
 def test_store_counts_does_not_wait_for_a_writer(tmp_path) -> None:
     store = create_app(
         settings=make_settings(tmp_path),

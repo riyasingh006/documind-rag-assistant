@@ -50,6 +50,13 @@ def test_root_and_health(client) -> None:
         "error": None,
         "device": "cpu",
     }
+    assert body["index"] == {
+        "state": "ready",
+        "ready": True,
+        "model": "fake-embedding-model",
+        "dimension": 64,
+        "error": None,
+    }
     assert body["llm"]["configured_provider"] == "extractive"
     assert body["llm"]["active_provider"] == "extractive"
     assert body["llm"]["available"] is False

@@ -153,11 +153,23 @@ def test_embedding_dimension_mismatch_is_rejected(settings, embedder) -> None:
     assert store.document_count() == 1
 
 
-def test_corrupt_index_raises_store_error(settings, embedder) -> None:
+def test_corrupt_index_metadata_is_rebuilt_without_losing_documents(settings, embedder) -> None:
     store = DocumentStore(settings, embedder)
-    add(store, "Index corruption fixture.")
+    summary = add(store, "Index corruption fixture with RECOVERY-2042.")
     index_path: Path = store.index_dir / "index.json"
     index_path.write_text("not-json", encoding="utf-8")
 
-    with pytest.raises(StoreError, match="Could not read index metadata"):
-        DocumentStore(settings, embedder)
+    reloaded = DocumentStore(settings, embedder)
+    assert reloaded.document_count() == 1
+    assert reloaded.index_ready is False
+    assert reloaded.index_state == "not_started"
+    assert reloaded.get_document(summary["id"]) is not None
+
+    reloaded.ensure_embedding_compatibility(embedder)
+    assert reloaded.index_ready is True
+    results = reloaded.search(
+        embedder.embed_query("recovery marker"),
+        threshold=0.05,
+    )
+    assert len(results) == 1
+    assert "RECOVERY-2042" in results[0].chunk.text

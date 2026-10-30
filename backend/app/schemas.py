@@ -26,6 +26,14 @@ class EmbeddingHealth(BaseModel):
     device: str
 
 
+class IndexHealth(BaseModel):
+    state: Literal["not_started", "migrating", "ready", "failed"]
+    ready: bool
+    model: str | None
+    dimension: int | None
+    error: str | None
+
+
 class RuntimeHealth(BaseModel):
     embedding_state: Literal["not_started", "loading", "ready", "failed", "unknown"]
     embedding_load_seconds: float | None = None
@@ -74,6 +82,7 @@ class HealthResponse(BaseModel):
     status: Literal["ok", "degraded"]
     version: str
     embedding: EmbeddingHealth
+    index: IndexHealth
     runtime: RuntimeHealth | None = None
     llm: LLMHealth
     counts: Counts

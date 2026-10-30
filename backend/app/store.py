@@ -22,6 +22,10 @@ class StoreError(RuntimeError):
     pass
 
 
+class StoreNotReadyError(StoreError):
+    pass
+
+
 @dataclass
 class Chunk:
     id: str
@@ -88,6 +92,9 @@ class DocumentStore:
         self._index: faiss.IndexFlatIP | None = None
         self._embedding_model: str | None = None
         self._dimension: int | None = None
+        self._index_ready = False
+        self._index_state = "not_started"
+        self._index_error: str | None = None
         self._lock = threading.RLock()
 
         self._documents_path = self.index_dir / "documents.json"
@@ -100,6 +107,8 @@ class DocumentStore:
             "index_vectors": 0,
         }
         self._load()
+        with self._lock:
+            self._refresh_index_readiness_locked()
         self._counts_snapshot = self.counts()
 
     # ------------------------------------------------------------------ load
@@ -131,35 +140,44 @@ class DocumentStore:
                     index_payload = json.loads(
                         self._rows_path.read_text(encoding="utf-8")
                     )
-                except (OSError, json.JSONDecodeError) as exc:
-                    raise StoreError(f"Could not read index metadata: {exc}") from exc
-                self._embedding_model = index_payload.get("embedding_model")
-                self._dimension = index_payload.get("dimension")
-                rows = index_payload.get("rows", [])
-                if isinstance(rows, list):
-                    self._rows = [str(row) for row in rows]
+                except (OSError, json.JSONDecodeError):
+                    index_payload = None
+                if isinstance(index_payload, dict):
+                    self._embedding_model = index_payload.get("embedding_model")
+                    self._dimension = index_payload.get("dimension")
+                    rows = index_payload.get("rows", [])
+                    if isinstance(rows, list):
+                        self._rows = [str(row) for row in rows]
+                else:
+                    self._index_error = "Saved vector-index metadata is invalid and must be rebuilt."
 
             if self._vectors_path.exists():
                 try:
-                    vectors = np.load(self._vectors_path, allow_pickle=False)
-                    vectors = np.asarray(vectors, dtype=np.float32)
-                    if vectors.ndim == 2:
+                    vectors = np.asarray(
+                        np.load(self._vectors_path, allow_pickle=False),
+                        dtype=np.float32,
+                    )
+                    if (
+                        vectors.ndim == 2
+                        and vectors.shape[0] == len(self._rows)
+                        and vectors.shape[0] > 0
+                        and np.isfinite(vectors).all()
+                        and (
+                            self._dimension is None
+                            or self._dimension == vectors.shape[1]
+                        )
+                    ):
                         self._vectors = vectors
+                        self._dimension = int(vectors.shape[1])
                     else:
-                        self._vectors = None
-                except (OSError, ValueError) as exc:
-                    raise StoreError(f"Could not read the vector index: {exc}") from exc
+                        self._index_error = "Saved vectors are inconsistent and must be rebuilt."
+                except (OSError, ValueError):
+                    self._index_error = "Saved vectors are unreadable and must be rebuilt."
 
-            if (
-                self._vectors is None
-                or len(self._rows) != self._vectors.shape[0]
-                or self._vectors.shape[0] == 0
-            ):
-                self._vectors = None
+            if self._vectors is None:
                 self._rows = []
                 self._index = None
             else:
-                self._dimension = int(self._vectors.shape[1])
                 self._rebuild_faiss_locked()
 
     def _rebuild_chunk_lookup_locked(self) -> None:
@@ -167,6 +185,56 @@ class DocumentStore:
         for document in self._documents.values():
             for chunk in document.chunks:
                 self._chunk_lookup[chunk.id] = (document, chunk)
+
+    @property
+    def index_ready(self) -> bool:
+        return self._index_ready
+
+    @property
+    def index_state(self) -> str:
+        return self._index_state
+
+    @property
+    def index_error(self) -> str | None:
+        return self._index_error
+
+    @property
+    def index_model(self) -> str | None:
+        return self._embedding_model
+
+    @property
+    def index_dimension(self) -> int | None:
+        return self._dimension
+
+    def _refresh_index_readiness_locked(self) -> None:
+        if not self._documents:
+            self._index_ready = True
+            self._index_state = "ready"
+            self._index_error = None
+            return
+
+        expected_ids = {
+            chunk.id
+            for document in self._documents.values()
+            for chunk in document.chunks
+        }
+        compatible = (
+            bool(expected_ids)
+            and self._embedding_model == self.embedder.model_name
+            and self.embedder.dimension is not None
+            and self._dimension == self.embedder.dimension
+            and self._vectors is not None
+            and self._vectors.shape[1] == self.embedder.dimension
+            and self._index is not None
+            and self._index.ntotal == self._vectors.shape[0] == len(self._rows)
+            and set(self._rows) == expected_ids
+        )
+        self._index_ready = bool(compatible)
+        if self._index_ready:
+            self._index_state = "ready"
+            self._index_error = None
+        elif self._index_state != "migrating":
+            self._index_state = "not_started"
 
     def _rebuild_faiss_locked(self) -> None:
         if self._vectors is None or self._vectors.shape[0] == 0:
@@ -217,9 +285,7 @@ class DocumentStore:
 
     # ----------------------------------------------------------------- write
     def ensure_embedding_compatibility(self, embedder: EmbeddingService) -> None:
-        """Re-embed all chunks if the configured embedding model changed."""
-        if not embedder.ready:
-            return
+        """Rebuild stored vectors when model metadata or row mappings disagree."""
         with self._lock:
             if not self._documents:
                 self._embedding_model = embedder.model_name
@@ -228,25 +294,54 @@ class DocumentStore:
                 self._rows = []
                 self._index = None
                 self._save_locked()
+                self._index_ready = True
+                self._index_state = "ready"
+                self._index_error = None
                 return
+
+            if not embedder.ready:
+                self._index_ready = False
+                self._index_state = "failed"
+                self._index_error = embedder.error or "Gemini embeddings are not ready."
+                return
+
+            self._index_ready = False
+            self._index_state = "migrating"
 
             expected_ids = {
                 chunk.id
                 for document in self._documents.values()
                 for chunk in document.chunks
             }
-            same_model = self._embedding_model == embedder.model_name
-            same_dimension = (
-                self._dimension is None
-                or embedder.dimension is None
-                or self._dimension == embedder.dimension
+            vectors_compatible = (
+                self._vectors is not None
+                and self._vectors.shape[0] == len(self._rows)
+                and self._vectors.shape[1] == embedder.dimension
+                and bool(self._rows)
             )
-            rows_cover_chunks = expected_ids.issubset(set(self._rows))
+            rows_compatible = bool(expected_ids) and set(self._rows) == expected_ids
+            metadata_compatible = (
+                self._embedding_model == embedder.model_name
+                and self._dimension == embedder.dimension
+            )
 
-            if same_model and same_dimension and rows_cover_chunks and self._vectors is not None:
+            if vectors_compatible and rows_compatible and metadata_compatible:
+                self._index_ready = True
+                self._index_state = "ready"
+                self._index_error = None
                 return
 
-            self._rebuild_embeddings_locked(embedder)
+            try:
+                self._rebuild_embeddings_locked(embedder)
+            except Exception as exc:
+                self._index_ready = False
+                self._index_state = "failed"
+                self._index_error = str(exc)
+                raise
+
+            self._index_ready = True
+            self._index_state = "ready"
+            self._index_error = None
 
     def _rebuild_embeddings_locked(self, embedder: EmbeddingService) -> None:
         all_chunks: list[Chunk] = [
@@ -266,16 +361,43 @@ class DocumentStore:
         vectors, chunk_indices = embedder.embed_chunks(
             [chunk.text for chunk in all_chunks]
         )
-        if vectors.shape[0] == 0:
-            raise StoreError("Embedding generation returned no vectors.")
+        if (
+            vectors.ndim != 2
+            or vectors.shape[0] == 0
+            or vectors.shape[0] != len(chunk_indices)
+            or (embedder.dimension is not None and vectors.shape[1] != embedder.dimension)
+            or set(chunk_indices) != set(range(len(all_chunks)))
+            or any(index < 0 or index >= len(all_chunks) for index in chunk_indices)
+            or not np.isfinite(vectors).all()
+            or np.any(np.linalg.norm(vectors, axis=1) <= 1e-12)
+        ):
+            raise StoreError("Embedding generation returned an invalid vector mapping.")
 
         vectors = _normalize_matrix(vectors)
-        self._vectors = vectors
-        self._rows = [all_chunks[index].id for index in chunk_indices]
-        self._embedding_model = embedder.model_name
-        self._dimension = int(vectors.shape[1])
-        self._rebuild_faiss_locked()
-        self._save_locked()
+        new_rows = [all_chunks[index].id for index in chunk_indices]
+        previous = (
+            self._vectors,
+            list(self._rows),
+            self._embedding_model,
+            self._dimension,
+            self._index,
+        )
+        try:
+            self._vectors = vectors
+            self._rows = new_rows
+            self._embedding_model = embedder.model_name
+            self._dimension = int(vectors.shape[1])
+            self._rebuild_faiss_locked()
+            self._save_locked()
+        except Exception:
+            (
+                self._vectors,
+                self._rows,
+                self._embedding_model,
+                self._dimension,
+                self._index,
+            ) = previous
+            raise
 
     def add_document(
         self,
@@ -289,6 +411,10 @@ class DocumentStore:
         with self._lock:
             if not self.embedder.ready:
                 raise StoreError("The embedding model is not ready.")
+            if not self._index_ready:
+                raise StoreNotReadyError(
+                    self._index_error or "The vector index is not ready yet; retry shortly."
+                )
 
             document_id = uuid4().hex
             extension = Path(extraction.filename).suffix.lower()
@@ -320,8 +446,17 @@ class DocumentStore:
             vectors, chunk_indices = self.embedder.embed_chunks(
                 [chunk.text for chunk in chunks]
             )
-            if vectors.shape[0] == 0:
-                raise StoreError("Embedding generation returned no vectors.")
+            if (
+                vectors.ndim != 2
+                or vectors.shape[0] == 0
+                or vectors.shape[0] != len(chunk_indices)
+                or (self.embedder.dimension is not None and vectors.shape[1] != self.embedder.dimension)
+                or set(chunk_indices) != set(range(len(chunks)))
+                or any(index < 0 or index >= len(chunks) for index in chunk_indices)
+                or not np.isfinite(vectors).all()
+                or np.any(np.linalg.norm(vectors, axis=1) <= 1e-12)
+            ):
+                raise StoreError("Embedding generation returned an invalid vector mapping.")
 
             vectors = _normalize_matrix(vectors)
             new_rows = [chunks[index].id for index in chunk_indices]
@@ -372,28 +507,57 @@ class DocumentStore:
             if document is None:
                 return False
 
+            previous = (
+                self._vectors,
+                list(self._rows),
+                self._embedding_model,
+                self._dimension,
+                self._index,
+                self._index_ready,
+                self._index_state,
+                self._index_error,
+            )
             chunk_ids = {chunk.id for chunk in document.chunks}
             keep_mask = np.array(
                 [chunk_id not in chunk_ids for chunk_id in self._rows],
                 dtype=bool,
             )
 
-            if self._vectors is not None and self._vectors.shape[0] == len(self._rows):
-                self._vectors = self._vectors[keep_mask]
-                if self._vectors.shape[0] == 0:
+            try:
+                if self._vectors is not None and self._vectors.shape[0] == len(self._rows):
+                    self._vectors = self._vectors[keep_mask]
+                    if self._vectors.shape[0] == 0:
+                        self._vectors = None
+                else:
                     self._vectors = None
-            else:
-                self._vectors = None
 
-            self._rows = [
-                chunk_id
-                for chunk_id, keep in zip(self._rows, keep_mask)
-                if keep
-            ]
-            self._documents.pop(document_id, None)
-            self._rebuild_chunk_lookup_locked()
-            self._rebuild_faiss_locked()
-            self._save_locked()
+                self._rows = [
+                    chunk_id
+                    for chunk_id, keep in zip(self._rows, keep_mask)
+                    if keep
+                ]
+                self._documents.pop(document_id, None)
+                self._rebuild_chunk_lookup_locked()
+                self._rebuild_faiss_locked()
+                if not self._documents:
+                    self._index_ready = True
+                    self._index_state = "ready"
+                    self._index_error = None
+                self._save_locked()
+            except Exception:
+                (
+                    self._vectors,
+                    self._rows,
+                    self._embedding_model,
+                    self._dimension,
+                    self._index,
+                    self._index_ready,
+                    self._index_state,
+                    self._index_error,
+                ) = previous
+                self._documents[document_id] = document
+                self._rebuild_chunk_lookup_locked()
+                raise
 
             (self.uploads_dir / document.stored_filename).unlink(missing_ok=True)
             return True
@@ -440,6 +604,10 @@ class DocumentStore:
             return []
 
         with self._lock:
+            if self._documents and not self._index_ready:
+                raise StoreNotReadyError(
+                    self._index_error or "The vector index is being prepared; retry shortly."
+                )
             if self._index is None or self._index.ntotal == 0 or self._vectors is None:
                 return []
 
