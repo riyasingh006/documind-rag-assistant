@@ -300,3 +300,67 @@ def test_startup_loads_embedding_model(settings) -> None:
         assert health["status"] == "ok"
         response = upload(test_client, "a.txt", b"Startup load regression text. " * 10)
         assert response.status_code == 201
+
+
+def _preflight(client, origin: str):
+    return client.options(
+        "/api/documents",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+
+def test_cors_rejects_unlisted_origin(client) -> None:
+    response = _preflight(client, "https://evil.example.com")
+    assert response.status_code == 400
+    assert "access-control-allow-origin" not in response.headers
+
+
+def test_cors_origins_ignore_trailing_slash(tmp_path) -> None:
+    from fastapi.testclient import TestClient
+
+    from app.config import Settings
+    from app.main import create_app
+    from tests.conftest import FakeEmbedder
+
+    configured = Settings(
+        data_dir=tmp_path / "data",
+        llm_provider="extractive",
+        cors_origins="https://app.example.com/, https://other.example.com",
+    )
+    assert configured.cors_origin_list == [
+        "https://app.example.com",
+        "https://other.example.com",
+    ]
+    with TestClient(create_app(settings=configured, embedder=FakeEmbedder())) as c:
+        response = _preflight(c, "https://app.example.com")
+        assert response.status_code == 200
+        assert (
+            response.headers["access-control-allow-origin"]
+            == "https://app.example.com"
+        )
+
+
+def test_cors_origin_regex_allows_preview_urls(tmp_path) -> None:
+    from fastapi.testclient import TestClient
+
+    from app.config import Settings
+    from app.main import create_app
+    from tests.conftest import FakeEmbedder
+
+    configured = Settings(
+        data_dir=tmp_path / "data",
+        llm_provider="extractive",
+        cors_origin_regex=r"https://.*\.vercel\.app",
+    )
+    with TestClient(create_app(settings=configured, embedder=FakeEmbedder())) as c:
+        allowed = _preflight(c, "https://documind-git-abc123.vercel.app")
+        assert allowed.status_code == 200
+        assert (
+            allowed.headers["access-control-allow-origin"]
+            == "https://documind-git-abc123.vercel.app"
+        )
+        assert _preflight(c, "https://evil.example.com").status_code == 400
