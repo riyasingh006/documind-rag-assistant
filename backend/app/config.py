@@ -70,9 +70,19 @@ class Settings(BaseSettings):
         "http://localhost:4173,http://127.0.0.1:4173"
     )
 
+    # Optional regex for origins that change per deploy (e.g. preview URLs),
+    # such as: https://.*\.vercel\.app
+    cors_origin_regex: str | None = None
+
     @property
     def cors_origin_list(self) -> list[str]:
-        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        # Browsers send origins without a trailing slash, so a configured
+        # "https://app.example.com/" would otherwise never match.
+        return [
+            origin.strip().rstrip("/")
+            for origin in self.cors_origins.split(",")
+            if origin.strip()
+        ]
 
     @property
     def max_upload_bytes(self) -> int:

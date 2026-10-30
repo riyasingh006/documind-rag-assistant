@@ -268,3 +268,175 @@ def test_cors_allows_configured_preview_origin(client) -> None:
     )
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:4173"
+
+
+def test_startup_loads_embedding_model(settings) -> None:
+    """Regression: the lifespan must load the embedding model at startup."""
+    import time
+
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+    from tests.conftest import FakeEmbedder
+
+    class LazyEmbedder(FakeEmbedder):
+        loaded = False
+
+        @property
+        def ready(self) -> bool:  # type: ignore[override]
+            return self.loaded
+
+        def load(self) -> None:
+            self.loaded = True
+
+    lazy = LazyEmbedder()
+    with TestClient(create_app(settings=settings, embedder=lazy)) as test_client:
+        for _ in range(50):
+            if test_client.get("/api/health").json()["embedding"]["ready"]:
+                break
+            time.sleep(0.05)
+        health = test_client.get("/api/health").json()
+        assert health["embedding"]["ready"] is True
+        assert health["status"] == "ok"
+        response = upload(test_client, "a.txt", b"Startup load regression text. " * 10)
+        assert response.status_code == 201
+
+
+def _preflight(client, origin: str):
+    return client.options(
+        "/api/documents",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+
+def test_cors_rejects_unlisted_origin(client) -> None:
+    response = _preflight(client, "https://evil.example.com")
+    assert response.status_code == 400
+    assert "access-control-allow-origin" not in response.headers
+
+
+def test_cors_origins_ignore_trailing_slash(tmp_path) -> None:
+    from fastapi.testclient import TestClient
+
+    from app.config import Settings
+    from app.main import create_app
+    from tests.conftest import FakeEmbedder
+
+    configured = Settings(
+        data_dir=tmp_path / "data",
+        llm_provider="extractive",
+        cors_origins="https://app.example.com/, https://other.example.com",
+    )
+    assert configured.cors_origin_list == [
+        "https://app.example.com",
+        "https://other.example.com",
+    ]
+    with TestClient(create_app(settings=configured, embedder=FakeEmbedder())) as c:
+        response = _preflight(c, "https://app.example.com")
+        assert response.status_code == 200
+        assert (
+            response.headers["access-control-allow-origin"]
+            == "https://app.example.com"
+        )
+
+
+def test_cors_origin_regex_allows_preview_urls(tmp_path) -> None:
+    from fastapi.testclient import TestClient
+
+    from app.config import Settings
+    from app.main import create_app
+    from tests.conftest import FakeEmbedder
+
+    configured = Settings(
+        data_dir=tmp_path / "data",
+        llm_provider="extractive",
+        cors_origin_regex=r"https://.*\.vercel\.app",
+    )
+    with TestClient(create_app(settings=configured, embedder=FakeEmbedder())) as c:
+        allowed = _preflight(c, "https://documind-git-abc123.vercel.app")
+        assert allowed.status_code == 200
+        assert (
+            allowed.headers["access-control-allow-origin"]
+            == "https://documind-git-abc123.vercel.app"
+        )
+        assert _preflight(c, "https://evil.example.com").status_code == 400
+
+
+class _FlakyEmbedder:
+    """Fails the first load (startup), succeeds on retry."""
+
+    def __new__(cls):
+        from tests.conftest import FakeEmbedder
+
+        class Flaky(FakeEmbedder):
+            attempts = 0
+            loaded = False
+            error: str | None = None
+
+            @property
+            def ready(self) -> bool:  # type: ignore[override]
+                return self.loaded
+
+            def load(self) -> None:
+                from app.embeddings import EmbeddingError
+
+                self.attempts += 1
+                if self.attempts == 1:
+                    self.error = "ConnectError: model host unreachable"
+                    raise EmbeddingError("The embedding model could not be loaded.")
+                self.loaded = True
+                self.error = None
+
+        return Flaky()
+
+
+def test_upload_and_query_recover_after_failed_startup_load(settings) -> None:
+    """Regression: one failed startup load must not leave the API permanently 503."""
+    import time
+
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    flaky = _FlakyEmbedder()
+    with TestClient(create_app(settings=settings, embedder=flaky)) as test_client:
+        for _ in range(50):  # wait for the failed startup attempt
+            if flaky.attempts >= 1:
+                break
+            time.sleep(0.05)
+        health = test_client.get("/api/health").json()
+        assert health["status"] == "degraded"
+        assert health["embedding"]["error"]
+
+        response = upload(test_client, "a.txt", b"Retry after failure works fine. " * 10)
+        assert response.status_code == 201
+        assert test_client.get("/api/health").json()["status"] == "ok"
+
+        answer = test_client.post(
+            "/api/query", json={"question": "Does retry after failure work?"}
+        )
+        assert answer.status_code == 200
+
+
+def test_upload_returns_503_when_embedding_keeps_failing(settings) -> None:
+    from fastapi.testclient import TestClient
+
+    from app.embeddings import EmbeddingError
+    from app.main import create_app
+    from tests.conftest import FakeEmbedder
+
+    class Broken(FakeEmbedder):
+        ready = False  # type: ignore[assignment]
+        error = "boom"
+
+        def load(self) -> None:
+            raise EmbeddingError("still broken")
+
+    with TestClient(create_app(settings=settings, embedder=Broken())) as test_client:
+        response = upload(test_client, "a.txt", b"some text " * 10)
+        assert response.status_code == 503
+        assert "not ready" in response.json()["detail"]

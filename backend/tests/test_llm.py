@@ -209,3 +209,78 @@ def test_ollama_alias_environment_variables(monkeypatch) -> None:
 
     assert settings.ollama_model == "alias-model:1b"
     assert settings.ollama_base_url == "http://alias-host:11434"
+
+
+# --- OpenAI-compatible (hosted) provider -------------------------------------
+# Ollama cannot run on typical PaaS hosts, so the hosted deployment relies on
+# this path. These tests cover routing and request/response handling.
+
+from app.llm import OpenAICompatibleClient  # noqa: E402
+
+
+def _unreachable_ollama(settings: Settings) -> OllamaClient:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused", request=request)
+
+    return OllamaClient(settings, transport=httpx.MockTransport(handler))
+
+
+def test_router_auto_uses_openai_when_ollama_unreachable() -> None:
+    settings = make_settings(openai_api_key="test-key", openai_model="m")
+    router = LLMRouter(settings)
+    router.ollama = _unreachable_ollama(settings)
+
+    resolved = asyncio.run(router.resolve(force_check=True))
+    status = asyncio.run(router.describe())
+
+    assert resolved.provider == "openai"
+    assert resolved.client is not None
+    assert status["status"] == "ready"
+    assert status["generation_active"] is True
+
+
+def test_router_explicit_openai_without_key_raises() -> None:
+    router = LLMRouter(make_settings(llm_provider="openai"))
+    with pytest.raises(LLMUnavailableError, match="OPENAI_API_KEY"):
+        asyncio.run(router.resolve())
+
+
+def test_openai_client_sends_auth_and_parses_answer(monkeypatch) -> None:
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["auth"] = request.headers.get("authorization")
+        seen["url"] = str(request.url)
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": " hello [1] "}}]},
+        )
+
+    settings = make_settings(
+        openai_api_key="test-key",
+        openai_base_url="https://llm.example.test/v1/",
+    )
+    client = OpenAICompatibleClient(settings)
+    monkeypatch.setattr(
+        client,
+        "_http",
+        lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+
+    assert asyncio.run(client.generate("sys", "prompt")) == "hello [1]"
+    assert seen["auth"] == "Bearer test-key"
+    assert seen["url"] == "https://llm.example.test/v1/chat/completions"
+
+
+def test_openai_client_maps_http_errors(monkeypatch) -> None:
+    settings = make_settings(openai_api_key="bad-key")
+    client = OpenAICompatibleClient(settings)
+    monkeypatch.setattr(
+        client,
+        "_http",
+        lambda: httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda r: httpx.Response(401))
+        ),
+    )
+    with pytest.raises(LLMGenerationError, match="401"):
+        asyncio.run(client.generate("sys", "prompt"))
