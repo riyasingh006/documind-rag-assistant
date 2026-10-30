@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -9,21 +8,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 ALLOWED_EXTENSIONS = (".pdf", ".txt")
-
-_LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
-
-
-def running_on_render() -> bool:
-    """Render sets RENDER=true in every service it runs."""
-    return os.environ.get("RENDER", "").strip().lower() == "true"
-
-
-def _is_loopback_url(url: str) -> bool:
-    try:
-        host = urlparse(url if "://" in url else f"//{url}").hostname
-    except ValueError:
-        return False
-    return (host or "").lower() in _LOOPBACK_HOSTS
 
 
 class Settings(BaseSettings):
@@ -41,9 +25,21 @@ class Settings(BaseSettings):
     version: str = "1.0.0"
     data_dir: Path = BACKEND_DIR / "data"
 
-    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
-    embedding_device: str = "cpu"
-    embedding_batch_size: int = 32
+    gemini_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "DOCUMIND_GEMINI_API_KEY",
+            "GEMINI_API_KEY",
+            "GOOGLE_API_KEY",
+        ),
+    )
+
+    embedding_model: str = "gemini-embedding-001"
+    embedding_dimension: int = Field(default=768, ge=128, le=3072)
+    embedding_device: str = "gemini-api"
+    embedding_batch_size: int = Field(default=32, ge=1, le=100)
+    embedding_timeout_seconds: float = Field(default=20.0, gt=0, le=60)
+    embedding_retry_budget_seconds: float = Field(default=35.0, gt=0, le=60)
 
     chunk_size: int = 800
     chunk_overlap: int = 120
@@ -57,60 +53,23 @@ class Settings(BaseSettings):
     max_upload_mb: int = 20
     max_pdf_pages: int = 500
 
-    llm_provider: str = "auto"  # auto | ollama | openai | extractive
-    llm_timeout_seconds: float = 240.0
-    llm_temperature: float = 0.1
-    llm_max_tokens: int = 350
+    llm_provider: str = "gemini"
+    llm_model: str = "gemini-3.8-flash"
+    llm_timeout_seconds: float = Field(default=20.0, gt=0, le=60)
+    llm_retry_budget_seconds: float = Field(default=35.0, gt=0, le=60)
+    llm_temperature: float = Field(default=0.1, ge=0, le=2)
+    llm_max_tokens: int = Field(default=350, ge=1, le=8192)
     extractive_fallback: bool = True
-
-    ollama_base_url: str = Field(
-        default="http://localhost:11434",
-        validation_alias=AliasChoices(
-            "DOCUMIND_OLLAMA_BASE_URL",
-            "OLLAMA_BASE_URL",
-        ),
-    )
-    ollama_model: str = Field(
-        default="qwen2.5:3b",
-        validation_alias=AliasChoices(
-            "DOCUMIND_OLLAMA_MODEL",
-            "OLLAMA_MODEL",
-        ),
-    )
-
-    # None = automatic: Ollama is skipped on hosted platforms (Render) when it
-    # points at a loopback address, because no Ollama server can exist there.
-    # Set DOCUMIND_OLLAMA_ENABLED=true/false to force the behaviour.
-    ollama_enabled: bool | None = None
-
-    openai_base_url: str = "https://api.openai.com/v1"
-    openai_api_key: str | None = None
-    openai_model: str = "gpt-4o-mini"
 
     cors_origins: str = (
         "http://localhost:5173,http://127.0.0.1:5173,"
-        "http://localhost:4173,http://127.0.0.1:4173"
+        "http://localhost:4173,http://127.0.0.1:4173,"
+        "https://documind-rag-assistant.onrender.com"
     )
-
-    # Optional regex for origins that change per deploy (e.g. preview URLs),
-    # such as: https://.*\.vercel\.app
     cors_origin_regex: str | None = None
 
     @property
-    def ollama_active(self) -> bool:
-        """Whether the router may try Ollama at all."""
-        if self.ollama_enabled is not None:
-            return self.ollama_enabled
-        if running_on_render() and _is_loopback_url(self.ollama_base_url):
-            return False
-        return True
-
-    @property
     def cors_origin_list(self) -> list[str]:
-        # A browser Origin header is only scheme://host[:port]. Accept the
-        # common misconfigurations (trailing slash, a path such as
-        # https://user.github.io/repo/, surrounding quotes) by reducing every
-        # entry to that form; otherwise the preflight is rejected with 400.
         origins: list[str] = []
         for raw in self.cors_origins.split(","):
             value = raw.strip().strip("\"'").strip()

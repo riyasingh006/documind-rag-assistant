@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .chunking import chunk_pages
 from .config import ALLOWED_EXTENSIONS, Settings
-from .embeddings import EmbeddingService
+from .embeddings import EmbeddingError, EmbeddingService
 from .extraction import (
     ExtractionError,
     extract_document,
@@ -29,6 +29,7 @@ from .schemas import (
     DocumentResponse,
     EmbeddingHealth,
     HealthResponse,
+    IndexHealth,
     Limits,
     LLMHealth,
     QueryRequest,
@@ -36,7 +37,7 @@ from .schemas import (
     RuntimeHealth,
 )
 from .runtime import hosted_platform, memory_limit_mb, rss_mb
-from .store import DocumentStore, StoreError
+from .store import DocumentStore, StoreError, StoreNotReadyError
 
 logger = logging.getLogger("documind")
 logger.setLevel(logging.INFO)
@@ -77,7 +78,10 @@ def create_app(
             try:
                 await asyncio.to_thread(embedding_service.load)
             except Exception as exc:  # startup failure must not crash the API
-                logger.warning("Embedding model failed to load: %s", exc)
+                await asyncio.to_thread(
+                    store.ensure_embedding_compatibility, embedding_service
+                )
+                logger.warning("Gemini embeddings are not ready: %s", exc)
                 return
             try:
                 await asyncio.to_thread(
@@ -121,8 +125,8 @@ def create_app(
         title="DocuMind AI API",
         version=configuration.version,
         description=(
-            "Document-grounded question answering with local embeddings, "
-            "FAISS retrieval, and configurable LLM generation."
+            "Document-grounded question answering with Gemini embeddings, "
+            "FAISS retrieval, and Gemini generation."
         ),
         lifespan=lifespan,
     )
@@ -160,7 +164,7 @@ def create_app(
         counts = store.counts()
 
         return HealthResponse(
-            status="ok" if embedding_service.ready else "degraded",
+            status="ok" if embedding_service.ready and store.index_ready else "degraded",
             version=configuration.version,
             embedding=EmbeddingHealth(
                 model=embedding_service.model_name,
@@ -168,6 +172,13 @@ def create_app(
                 ready=bool(embedding_service.ready),
                 error=embedding_service.error,
                 device=embedding_service.device,
+            ),
+            index=IndexHealth(
+                state=store.index_state,
+                ready=store.index_ready,
+                model=store.index_model,
+                dimension=store.index_dimension,
+                error=store.index_error,
             ),
             runtime=RuntimeHealth(
                 embedding_state=_embedding_state(embedding_service),  # type: ignore[arg-type]
@@ -211,20 +222,20 @@ def create_app(
     ) -> DocumentResponse:
         configuration, embedding_service, store, _rag = state(request)
 
-        if not embedding_service.ready:
-            # The startup load may have failed (e.g. a transient model
-            # download error). Retry here; load() is lock-protected, so this
-            # waits for an in-flight startup load instead of racing it.
-            try:
+        try:
+            if not embedding_service.ready:
                 await asyncio.to_thread(embedding_service.load)
-            except Exception as exc:
-                raise HTTPException(
-                    status_code=503,
-                    detail=(
-                        "The embedding model is not ready. Check /api/health "
-                        f"for the underlying error. ({exc})"
-                    ),
-                ) from exc
+            await asyncio.to_thread(
+                store.ensure_embedding_compatibility, embedding_service
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Gemini embeddings or the FAISS index are not ready. "
+                    f"Check /api/health for details. ({exc})"
+                ),
+            ) from exc
 
         try:
             clean_name = sanitize_filename(file.filename)
@@ -300,6 +311,10 @@ def create_app(
             summary = await asyncio.to_thread(
                 store.add_document, extraction, text_chunks, data
             )
+        except EmbeddingError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except StoreNotReadyError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         except StoreError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 

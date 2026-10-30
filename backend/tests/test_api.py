@@ -50,12 +50,18 @@ def test_root_and_health(client) -> None:
         "error": None,
         "device": "cpu",
     }
+    assert body["index"] == {
+        "state": "ready",
+        "ready": True,
+        "model": "fake-embedding-model",
+        "dimension": 64,
+        "error": None,
+    }
     assert body["llm"]["configured_provider"] == "extractive"
     assert body["llm"]["active_provider"] == "extractive"
     assert body["llm"]["available"] is False
     assert body["llm"]["status"] == "extractive"
     assert body["llm"]["generation_active"] is False
-    assert body["llm"]["ollama_model"] == "qwen2.5:3b"
     assert body["counts"] == {"documents": 0, "chunks": 0, "index_vectors": 0}
     assert body["limits"]["allowed_extensions"] == ["pdf", "txt"]
     assert body["limits"]["max_upload_mb"] == 1
@@ -420,6 +426,26 @@ def test_upload_and_query_recover_after_failed_startup_load(settings) -> None:
             "/api/query", json={"question": "Does retry after failure work?"}
         )
         assert answer.status_code == 200
+
+
+def test_upload_returns_503_for_temporary_gemini_embedding_failure(settings) -> None:
+    from fastapi.testclient import TestClient
+
+    from app.embeddings import EmbeddingError
+    from app.main import create_app
+    from tests.conftest import FakeEmbedder
+
+    class TemporaryFailure(FakeEmbedder):
+        def embed_chunks(self, texts):
+            raise EmbeddingError("Gemini embeddings remained temporarily unavailable (HTTP 503).")
+
+    with TestClient(
+        create_app(settings=settings, embedder=TemporaryFailure())
+    ) as test_client:
+        response = upload(test_client, "a.txt", b"Temporary embedding failures are recoverable. " * 10)
+
+    assert response.status_code == 503
+    assert "temporarily unavailable" in response.json()["detail"]
 
 
 def test_upload_returns_503_when_embedding_keeps_failing(settings) -> None:

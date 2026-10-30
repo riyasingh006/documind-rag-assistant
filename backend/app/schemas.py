@@ -26,6 +26,14 @@ class EmbeddingHealth(BaseModel):
     device: str
 
 
+class IndexHealth(BaseModel):
+    state: Literal["not_started", "migrating", "ready", "failed"]
+    ready: bool
+    model: str | None
+    dimension: int | None
+    error: str | None
+
+
 class RuntimeHealth(BaseModel):
     embedding_state: Literal["not_started", "loading", "ready", "failed", "unknown"]
     embedding_load_seconds: float | None = None
@@ -41,15 +49,10 @@ class LLMHealth(BaseModel):
     available: bool
     fallback_enabled: bool
     detail: str | None
-    ollama_base_url: str | None = None
-    ollama_model: str | None = None
-    ollama_connected: bool | None = None
-    model_available: bool | None = None
     generation_active: bool = False
     status: Literal[
-        "ready",
-        "model_missing",
-        "unavailable",
+        "configured",
+        "temporarily_unavailable",
         "fallback",
         "extractive",
         "not_configured",
@@ -79,6 +82,7 @@ class HealthResponse(BaseModel):
     status: Literal["ok", "degraded"]
     version: str
     embedding: EmbeddingHealth
+    index: IndexHealth
     runtime: RuntimeHealth | None = None
     llm: LLMHealth
     counts: Counts

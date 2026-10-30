@@ -71,7 +71,6 @@ def settings(tmp_path: Path) -> Settings:
         max_upload_mb=1,
         max_pdf_pages=5,
         llm_provider="extractive",
-        ollama_model="qwen2.5:3b",
     )
 
 

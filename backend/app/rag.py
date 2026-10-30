@@ -489,15 +489,18 @@ class RAGService:
             len(selected_ids) if selected_ids is not None else total_documents
         )
 
-        if not self.embedder.ready:
-            # Retry a failed startup load; load() is lock-protected.
-            try:
+        try:
+            if not self.embedder.ready:
                 await asyncio.to_thread(self.embedder.load)
-            except Exception as exc:
-                raise EmbeddingNotReadyError(
-                    "The embedding model is not ready. Check /api/health and "
-                    f"the server logs. ({exc})"
-                ) from exc
+            await asyncio.to_thread(
+                self.store.ensure_embedding_compatibility,
+                self.embedder,
+            )
+        except Exception as exc:
+            raise EmbeddingNotReadyError(
+                "Gemini embeddings or the vector index are not ready. "
+                f"Check /api/health for details. ({exc})"
+            ) from exc
 
         retrieval_started = time.perf_counter()
         try:
@@ -601,7 +604,7 @@ class RAGService:
                 raw = await resolved.client.generate(SYSTEM_PROMPT, prompt)
                 answerable, answer, proposed_ids = parse_llm_output(raw)
             except LLMGenerationError as exc:
-                if resolved.automatic and self.settings.extractive_fallback:
+                if self.settings.extractive_fallback:
                     provider = "extractive"
                     model = "extractive fallback"
                     mode = "extractive"

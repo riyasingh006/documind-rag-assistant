@@ -69,14 +69,12 @@ def make_service(
     settings,
     output=None,
     error=None,
-    automatic=False,
 ):
     client = FakeClient(output=output, error=error)
     resolved = ResolvedLLM(
         client=client,
         provider="fake",
         model="fake-llm",
-        automatic=automatic,
     )
     return RAGService(store, embedder, settings, llm_router=FakeRouter(resolved))
 
@@ -87,7 +85,6 @@ def extractive_service(store, embedder, settings):
         provider="extractive",
         model="extractive fallback",
         fallback_reason="test fallback",
-        automatic=True,
     )
     return RAGService(store, embedder, settings, llm_router=FakeRouter(resolved))
 
@@ -329,7 +326,6 @@ def test_llm_failure_uses_extractive_fallback(
         embedder,
         settings,
         error=LLMGenerationError("provider timed out"),
-        automatic=True,
     )
     response = answer(service, "What is the launch code?", threshold=0.05)
 
@@ -354,8 +350,8 @@ def test_llm_is_not_called_without_retrieved_evidence(
         llm_router=FakeRouter(
             ResolvedLLM(
                 client=client,
-                provider="ollama",
-                model="qwen2.5:3b",
+                provider="gemini",
+                model="gemini-3.8-flash",
             )
         ),
     )

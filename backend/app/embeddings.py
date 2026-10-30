@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import email.utils
 import logging
+import random
 import threading
 import time
+from datetime import datetime, timezone
+from typing import Callable
 
+import httpx
 import numpy as np
 
 from .config import Settings
@@ -13,231 +18,269 @@ logger = logging.getLogger("documind.embeddings")
 
 
 class EmbeddingError(RuntimeError):
-    """Raised when the embedding model cannot be used."""
+    """Raised when the Gemini embedding service cannot be used."""
 
 
 class EmbeddingService:
-    """Local sentence-transformers embeddings with safe context windowing.
+    """Gemini-backed document and query embeddings with bounded retries."""
 
-    all-MiniLM-L6-v2 has a maximum sequence length of 256 tokens. Since
-    chunks are larger (default ~800 approximate tokens), each chunk is split
-    into overlapping model windows for embedding. Retrieval deduplicates
-    window hits back to their parent chunk.
-    """
+    _RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
+    _MAX_ATTEMPTS = 3
+    _MAX_INPUT_CHARS = 1_500
+    _WINDOW_OVERLAP_CHARS = 120
 
-    def __init__(self, settings: Settings):
+    def __init__(
+        self,
+        settings: Settings,
+        transport: httpx.BaseTransport | None = None,
+        sleep: Callable[[float], None] = time.sleep,
+    ):
         self.settings = settings
         self.model_name = settings.embedding_model
         self.device = settings.embedding_device
-        self.dimension: int | None = None
-        self.max_seq_length: int | None = None
+        self.dimension: int | None = settings.embedding_dimension
+        self.state = "not_started"
         self.error: str | None = None
-        # not_started -> loading -> ready | failed. `error` only describes a
-        # Python exception; a process killed by the OS (e.g. out of memory)
-        # never reaches it, so `state` and the stage logs are what show that a
-        # load was in progress.
-        self.state: str = "not_started"
         self.load_seconds: float | None = None
-
-        self._model = None
-        self._tokenizer = None
+        self._api_key = (settings.gemini_api_key or "").strip()
+        self._transport = transport
+        self._sleep = sleep
+        self._ready = False
         self._load_lock = threading.Lock()
-        self._inference_lock = threading.Lock()
+        self._request_lock = threading.Lock()
 
     @property
     def ready(self) -> bool:
-        return self._model is not None
+        return self._ready
+
+    def _set_failure(self, message: str) -> EmbeddingError:
+        self._ready = False
+        self.state = "failed"
+        self.error = message
+        return EmbeddingError(message)
 
     def load(self) -> None:
         with self._load_lock:
-            if self._model is not None:
+            if self._ready:
                 return
-
             self.state = "loading"
             started = time.monotonic()
             logger.info(
-                "Embedding model load starting: %s (device=%s, rss=%s MB)",
+                "Gemini embedding configuration check starting (model=%s, rss=%s MB)",
                 self.model_name,
-                self.device,
+                rss_mb(),
+            )
+            if not self._api_key:
+                raise self._set_failure(
+                    "DOCUMIND_GEMINI_API_KEY is not configured. Add it to the server environment."
+                )
+            if not 128 <= self.settings.embedding_dimension <= 3072:
+                raise self._set_failure(
+                    "The configured Gemini embedding dimension must be between 128 and 3072."
+                )
+            self.dimension = self.settings.embedding_dimension
+            self.error = None
+            self._ready = True
+            self.state = "ready"
+            self.load_seconds = round(time.monotonic() - started, 3)
+            logger.info(
+                "Gemini embedding configuration ready (model=%s, dimension=%s, rss=%s MB)",
+                self.model_name,
+                self.dimension,
                 rss_mb(),
             )
 
-            try:
-                from sentence_transformers import SentenceTransformer
-
-                logger.info(
-                    "sentence-transformers imported (rss=%s MB); loading weights",
-                    rss_mb(),
-                )
-                model = SentenceTransformer(
-                    self.model_name,
-                    device=self.device,
-                )
-
-                dimension_getter = getattr(
-                    model,
-                    "get_embedding_dimension",
-                    None,
-                ) or getattr(
-                    model,
-                    "get_sentence_embedding_dimension",
-                    None,
-                )
-
-                if not callable(dimension_getter):
-                    raise EmbeddingError(
-                        "The embedding model does not expose its output dimension."
-                    )
-
-                dimension = int(dimension_getter())
-
-                max_length = getattr(model, "max_seq_length", None)
-
-                # Publish state only after everything succeeded, and set
-                # _model last, so `ready` is never True while dimension is None.
-                self._tokenizer = model.tokenizer
-                self.dimension = dimension
-                self.max_seq_length = int(max_length) if max_length else 256
-                self._model = model
-
-                self.error = None
-                self.state = "ready"
-                self.load_seconds = round(time.monotonic() - started, 1)
-                logger.info(
-                    "Embedding model load finished in %.1fs (dimension=%s, rss=%s MB)",
-                    self.load_seconds,
-                    self.dimension,
-                    rss_mb(),
-                )
-
-            except Exception as exc:
-                self.state = "failed"
-                logger.exception("Embedding model load failed")
-                self.error = f"{type(exc).__name__}: {exc}"
-                self._model = None
-                self._tokenizer = None
-                self.dimension = None
-
-                raise EmbeddingError(
-                    "The embedding model could not be loaded. Check that "
-                    "sentence-transformers is installed and the model is "
-                    f"available: {self.error}"
-                ) from exc
-
-    def _require_model(self):
-        if self._model is None:
-            self.load()
-
-        if self._model is None:
-            raise EmbeddingError(
-                "The embedding model is not ready. See the server logs and "
-                "/api/health for details."
-            )
-
-        return self._model
-
     def _windows_for_text(self, text: str) -> list[str]:
-        self._require_model()
-
-        tokenizer = self._tokenizer
-        stripped = text.strip()
-
-        if not stripped:
+        cleaned = text.strip()
+        if not cleaned:
             return []
+        if len(cleaned) <= self._MAX_INPUT_CHARS:
+            return [cleaned]
 
-        if tokenizer is None:
-            return [stripped]
-
-        limit = max(32, (self.max_seq_length or 256) - 4)
-
-        try:
-            token_ids = tokenizer.encode(
-                stripped,
-                add_special_tokens=False,
-            )
-        except Exception:
-            return [stripped]
-
-        if len(token_ids) <= limit:
-            return [stripped]
-
-        stride = max(1, int(limit * 0.8))
         windows: list[str] = []
         start = 0
-
-        while start < len(token_ids):
-            end = min(start + limit, len(token_ids))
-            window_ids = token_ids[start:end]
-
-            if len(window_ids) < 8 and windows:
-                break
-
-            window = tokenizer.decode(
-                window_ids,
-                skip_special_tokens=True,
-                clean_up_tokenization_spaces=True,
-            ).strip()
-
+        while start < len(cleaned):
+            end = min(start + self._MAX_INPUT_CHARS, len(cleaned))
+            if end < len(cleaned):
+                boundary = max(
+                    cleaned.rfind(" ", start + self._MAX_INPUT_CHARS // 2, end),
+                    cleaned.rfind("\n", start + self._MAX_INPUT_CHARS // 2, end),
+                )
+                if boundary > start:
+                    end = boundary
+            window = cleaned[start:end].strip()
             if window:
                 windows.append(window)
-
-            if end >= len(token_ids):
+            if end >= len(cleaned):
                 break
-
-            start += stride
-
-        if not windows:
-            return [stripped]
-
+            start = max(start + 1, end - self._WINDOW_OVERLAP_CHARS)
         return windows
 
-    def embed_query(self, text: str) -> np.ndarray:
-        model = self._require_model()
-        cleaned = text.strip()
+    def _backoff(self, attempt: int) -> float:
+        return 0.35 * (2 ** (attempt - 1)) * random.uniform(0.8, 1.2)
 
-        if not cleaned:
-            raise EmbeddingError("The query is empty.")
+    def _retry_after(self, response: httpx.Response, attempt: int) -> float:
+        value = response.headers.get("retry-after", "").strip()
+        if not value:
+            return self._backoff(attempt)
+        try:
+            return min(3.0, max(0.0, float(value)))
+        except ValueError:
+            try:
+                retry_at = email.utils.parsedate_to_datetime(value)
+                if retry_at.tzinfo is None:
+                    retry_at = retry_at.replace(tzinfo=timezone.utc)
+                return min(
+                    3.0,
+                    max(0.0, (retry_at - datetime.now(timezone.utc)).total_seconds()),
+                )
+            except (TypeError, ValueError, OverflowError):
+                return self._backoff(attempt)
 
-        with self._inference_lock:
-            vector = model.encode(
-                [cleaned],
-                batch_size=1,
-                normalize_embeddings=True,
-                convert_to_numpy=True,
-                show_progress_bar=False,
-            )
+    def _embed_batch(self, texts: list[str], task_type: str) -> np.ndarray:
+        url = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{self.model_name}:batchEmbedContents"
+        )
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": self._api_key,
+        }
+        payload = {
+            "requests": [
+                {
+                    "model": f"models/{self.model_name}",
+                    "content": {"parts": [{"text": text}]},
+                    "taskType": task_type,
+                    "outputDimensionality": self.settings.embedding_dimension,
+                }
+                for text in texts
+            ]
+        }
+        deadline = time.monotonic() + self.settings.embedding_retry_budget_seconds
 
-        return np.asarray(vector, dtype=np.float32)[0]
+        for attempt in range(1, self._MAX_ATTEMPTS + 1):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise self._set_failure(
+                    "Gemini embeddings did not respond within the configured retry time limit."
+                )
+            request_timeout = min(self.settings.embedding_timeout_seconds, remaining)
+            timeout = httpx.Timeout(request_timeout, connect=min(5.0, request_timeout))
+            try:
+                with httpx.Client(
+                    timeout=timeout,
+                    follow_redirects=False,
+                    transport=self._transport,
+                ) as client:
+                    response = client.post(
+                        url,
+                        headers=headers,
+                        json=payload,
+                        timeout=timeout,
+                    )
+            except httpx.TimeoutException as exc:
+                if attempt == self._MAX_ATTEMPTS or time.monotonic() >= deadline:
+                    raise self._set_failure(
+                        "Gemini embeddings did not respond within the configured retry time limit."
+                    ) from exc
+                self._sleep(min(self._backoff(attempt), max(0.0, deadline - time.monotonic())))
+                continue
+            except httpx.HTTPError as exc:
+                if attempt == self._MAX_ATTEMPTS or time.monotonic() >= deadline:
+                    raise self._set_failure(
+                        "Gemini embeddings could not be reached after repeated connection attempts."
+                    ) from exc
+                self._sleep(min(self._backoff(attempt), max(0.0, deadline - time.monotonic())))
+                continue
 
-    def embed_chunks(
-        self,
-        texts: list[str],
-    ) -> tuple[np.ndarray, list[int]]:
-        model = self._require_model()
+            if response.status_code in self._RETRYABLE_STATUS_CODES:
+                if attempt == self._MAX_ATTEMPTS or time.monotonic() >= deadline:
+                    raise self._set_failure(
+                        f"Gemini embeddings remained temporarily unavailable (HTTP {response.status_code})."
+                    )
+                self._sleep(
+                    min(
+                        self._retry_after(response, attempt),
+                        max(0.0, deadline - time.monotonic()),
+                    )
+                )
+                continue
 
+            if response.status_code != 200:
+                if response.status_code in {401, 403}:
+                    message = "Gemini rejected the configured API key or its permissions for embeddings."
+                elif response.status_code == 404:
+                    message = "The configured Gemini embedding model was not found."
+                else:
+                    message = f"Gemini rejected the embedding request (HTTP {response.status_code})."
+                raise self._set_failure(message)
+
+            try:
+                body = response.json()
+                items = body.get("embeddings") if isinstance(body, dict) else None
+                if not isinstance(items, list) or len(items) != len(texts):
+                    raise ValueError("Embedding count did not match the request.")
+                matrix = np.asarray(
+                    [item["values"] for item in items],
+                    dtype=np.float32,
+                )
+                if matrix.shape != (len(texts), self.settings.embedding_dimension):
+                    raise ValueError("Embedding dimensions did not match configuration.")
+                if not np.isfinite(matrix).all():
+                    raise ValueError("Embedding values were not finite.")
+                norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+                if np.any(norms <= 1e-12):
+                    raise ValueError("Gemini returned a zero-length embedding.")
+                matrix = matrix / norms
+            except (KeyError, TypeError, ValueError) as exc:
+                raise self._set_failure(
+                    "Gemini returned an invalid embedding response."
+                ) from exc
+
+            self.error = None
+            self._ready = True
+            self.state = "ready"
+            return matrix.astype(np.float32, copy=False)
+
+        raise self._set_failure("Gemini embeddings could not be generated.")
+
+    def _embed_texts(self, texts: list[str], task_type: str) -> np.ndarray:
+        if not self.ready:
+            self.load()
         if not texts:
-            dimension = self.dimension or 384
-            return np.zeros((0, dimension), dtype=np.float32), []
+            return np.zeros((0, self.settings.embedding_dimension), dtype=np.float32)
 
+        with self._request_lock:
+            output: list[np.ndarray] = []
+            batch_size = self.settings.embedding_batch_size
+            for start in range(0, len(texts), batch_size):
+                output.append(
+                    self._embed_batch(texts[start : start + batch_size], task_type)
+                )
+        return np.vstack(output) if output else np.zeros(
+            (0, self.settings.embedding_dimension), dtype=np.float32
+        )
+
+    def embed_query(self, text: str) -> np.ndarray:
+        windows = self._windows_for_text(text)
+        if not windows:
+            raise EmbeddingError("The query is empty.")
+        vectors = self._embed_texts(windows, "RETRIEVAL_QUERY")
+        vector = vectors.mean(axis=0)
+        norm = float(np.linalg.norm(vector))
+        if norm <= 1e-12:
+            raise self._set_failure("Gemini returned an invalid query embedding.")
+        return (vector / norm).astype(np.float32, copy=False)
+
+    def embed_chunks(self, texts: list[str]) -> tuple[np.ndarray, list[int]]:
         window_texts: list[str] = []
         chunk_indices: list[int] = []
-
         for index, text in enumerate(texts):
             for window in self._windows_for_text(text):
                 window_texts.append(window)
                 chunk_indices.append(index)
-
         if not window_texts:
-            dimension = self.dimension or 384
-            return np.zeros((0, dimension), dtype=np.float32), []
-
-        with self._inference_lock:
-            vectors = model.encode(
-                window_texts,
-                batch_size=self.settings.embedding_batch_size,
-                normalize_embeddings=True,
-                convert_to_numpy=True,
-                show_progress_bar=False,
-            )
-
-        return np.asarray(vectors, dtype=np.float32), chunk_indices
+            return np.zeros((0, self.settings.embedding_dimension), dtype=np.float32), []
+        vectors = self._embed_texts(window_texts, "RETRIEVAL_DOCUMENT")
+        return vectors, chunk_indices
