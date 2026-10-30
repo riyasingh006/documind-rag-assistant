@@ -14,7 +14,7 @@ describe("resolveApiBase", () => {
   });
 
   it("falls back to the deployed backend on other hosts", () => {
-    expect(resolveApiBase(undefined, "riyasingh006.github.io")).toBe(
+    expect(resolveApiBase(undefined, "documind-rag-assistant.onrender.com")).toBe(
       "https://documind-rag-assistant-api.onrender.com/api",
     );
   });

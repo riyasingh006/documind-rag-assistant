@@ -25,13 +25,13 @@ const principles = [
   },
   {
     icon: Binary,
-    title: "Local-first processing",
+    title: "Backend-first processing",
     description:
-      "Extraction and embeddings run on the backend machine. No third-party embedding service.",
+      "Documents are processed by the backend; Gemini creates retrieval embeddings and grounded answers using a key that stays server-side.",
   },
 ];
 
-const stack = ["FastAPI", "sentence-transformers", "FAISS", "React"];
+const stack = ["React", "FastAPI", "Gemini API", "FAISS"];
 
 export function About() {
   return (
@@ -166,7 +166,7 @@ export function About() {
                 <div className="mt-6 grid grid-cols-3 gap-2">
                   {[
                     { label: "Text chunks", detail: "~800 tokens" },
-                    { label: "Embeddings", detail: "384 dimensions" },
+                    { label: "Embeddings", detail: "768 dimensions" },
                     { label: "Citations", detail: "validated IDs" },
                   ].map((item) => (
                     <div

@@ -29,9 +29,9 @@ import {
 import { API_BASE } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import {
+  llmGuidance,
   llmStatusLabel,
   llmStatusTone,
-  ollamaGuidance,
 } from "@/lib/llm";
 
 type FieldErrors = Partial<Record<keyof RetrievalSettings, string>>;
@@ -69,8 +69,7 @@ function validate(draft: RetrievalSettings): FieldErrors {
 }
 
 function ProviderName({ provider }: { provider: string }) {
-  if (provider === "ollama") return <>Ollama</>;
-  if (provider === "openai") return <>OpenAI-compatible</>;
+  if (provider === "gemini") return <>Gemini</>;
   if (provider === "extractive") return <>Extractive fallback</>;
   if (provider === "none") return <>Not configured</>;
   return <>{provider}</>;
@@ -226,9 +225,6 @@ export function SettingsPage() {
   const thresholdPercent = Math.round(draft.threshold * 100);
   const online = Boolean(health) && !healthError;
   const extractive = health?.llm.active_provider === "extractive";
-  const ollamaModel = health?.llm.ollama_model ?? "qwen2.5:3b";
-  const ollamaConnected = health?.llm.ollama_connected;
-  const modelAvailable = health?.llm.model_available;
 
   return (
     <div className="min-h-[calc(100dvh-56px)] lg:min-h-dvh">
@@ -242,8 +238,7 @@ export function SettingsPage() {
               Settings
             </h1>
             <p className="mt-1 max-w-lg text-[11px] leading-5 text-ink-500">
-              Tune retrieval behavior and inspect the local embedding and answer
-              engines.
+              Tune retrieval behavior and inspect Gemini embedding, index, and answer status.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -519,15 +514,14 @@ export function SettingsPage() {
                       </p>
                     </div>
                     <p className="mt-1 text-[9px] leading-4 text-amber-800/90">
-                      {ollamaGuidance(health?.llm) ||
+                      {llmGuidance(health?.llm) ||
                         "Answers quote the strongest matching passage instead of being synthesized."}
                     </p>
                     <div className="mt-2 rounded-lg border border-amber-200/70 bg-surface/70 p-2.5 font-mono text-[8.5px] leading-5 text-ink-700">
-                      <p className="text-ink-400"># Local option</p>
-                      <p>ollama pull {ollamaModel}</p>
-                      <p>ollama serve</p>
-                      <p className="mt-1.5 text-ink-400"># then restart the API</p>
-                      <p>uvicorn app.main:app --port 8000</p>
+                      <p className="text-ink-400"># configure on the backend</p>
+                      <p>DOCUMIND_GEMINI_API_KEY=...</p>
+                      <p>DOCUMIND_LLM_PROVIDER=gemini</p>
+                      <p className="mt-1.5 text-ink-400"># or keep the labelled extractive fallback</p>
                     </div>
                   </div>
                 ) : (
@@ -553,17 +547,11 @@ export function SettingsPage() {
                     <p>
                       <span className="text-ink-400"># backend/.env</span>
                     </p>
-                    <p>DOCUMIND_LLM_PROVIDER=auto</p>
-                    <p>DOCUMIND_OLLAMA_MODEL={ollamaModel}</p>
-                    <p className="text-ink-400">
-                      # or use an OpenAI-compatible endpoint
-                    </p>
-                    <p>DOCUMIND_OPENAI_API_KEY=...</p>
+                    <p>DOCUMIND_LLM_PROVIDER=gemini</p>
+                    <p>DOCUMIND_GEMINI_API_KEY=...</p>
                   </div>
                   <p className="mt-1.5 text-[8px] leading-4 text-ink-300">
-                    Provider selection uses Ollama when reachable, otherwise the
-                    configured external endpoint, then the extractive fallback.
-                    Restart the backend after changing environment variables.
+                    The Gemini key stays on the backend and is never sent to this browser. If Gemini is unavailable, the backend uses the clearly labelled extractive fallback. Restart the backend after changing environment variables.
                   </p>
                 </div>
               </div>
@@ -600,62 +588,31 @@ export function SettingsPage() {
                   detail={API_BASE}
                 />
                 <StatusRow
-                  label="Embedding index"
+                  label="Gemini embeddings"
                   value={
                     health?.embedding.ready
-                      ? "Ready"
+                      ? "Configured"
                       : healthLoading
-                        ? "Loading…"
+                        ? "Checking…"
                         : "Unavailable"
                   }
                   tone={health?.embedding.ready ? "good" : "bad"}
+                  detail={health?.embedding.error ?? health?.embedding.model}
+                />
+                <StatusRow
+                  label="FAISS index"
+                  value={health?.index.state ?? "Unknown"}
+                  tone={health?.index.ready ? "good" : "warn"}
                   detail={
-                    health
-                      ? `${health.counts.chunks} chunks · ${health.counts.index_vectors} vectors`
-                      : undefined
+                    health?.index.error ??
+                    `${health?.counts.chunks ?? 0} chunks · ${health?.counts.index_vectors ?? 0} vectors`
                   }
                 />
                 <StatusRow
-                  label="Answer engine"
+                  label="Gemini API"
                   value={llmStatusLabel(health?.llm ?? null)}
                   tone={llmStatusTone(health?.llm ?? null)}
-                  detail={health?.llm.model}
-                />
-                <StatusRow
-                  label="Ollama API"
-                  value={
-                    ollamaConnected === true
-                      ? "Connected"
-                      : ollamaConnected === false
-                        ? "Unavailable"
-                        : "Not used"
-                  }
-                  tone={
-                    ollamaConnected === true
-                      ? "good"
-                      : ollamaConnected === false
-                        ? "bad"
-                        : "default"
-                  }
-                  detail={health?.llm.ollama_base_url ?? undefined}
-                />
-                <StatusRow
-                  label="Ollama model"
-                  value={
-                    modelAvailable === true
-                      ? "Available"
-                      : modelAvailable === false
-                        ? "Missing"
-                        : ollamaModel
-                  }
-                  tone={
-                    modelAvailable === true
-                      ? "good"
-                      : modelAvailable === false
-                        ? "bad"
-                        : "default"
-                  }
-                  detail={ollamaModel}
+                  detail={health?.llm.detail ?? undefined}
                 />
                 <StatusRow
                   label="Generation"
@@ -666,7 +623,7 @@ export function SettingsPage() {
                 <StatusRow
                   label="Documents"
                   value={String(health?.counts.documents ?? 0)}
-                  detail={online ? "Stored locally" : undefined}
+                  detail={online ? "Stored on backend" : undefined}
                 />
               </div>
 
@@ -707,8 +664,8 @@ export function SettingsPage() {
                   }
                 />
                 <StatusRow
-                  label="Device"
-                  value={health?.embedding.device ?? "—"}
+                  label="Provider"
+                  value="Google Gemini API"
                 />
                 <StatusRow
                   label="State"
@@ -717,8 +674,7 @@ export function SettingsPage() {
                 />
               </div>
               <p className="mt-2 text-[8px] leading-4 text-ink-300">
-                Sentence-transformers runs locally on CPU. Embeddings are
-                generated during upload and stored in the backend index.
+                Gemini creates retrieval embeddings for uploads and questions. Vectors are normalized and stored in the FAISS index.
               </p>
             </section>
 
@@ -740,8 +696,10 @@ export function SettingsPage() {
                   <code className="rounded bg-ink-50 px-1 font-mono text-ink-600">
                     backend/data
                   </code>
-                  . This demo has no authentication; do not expose the API
-                  publicly.
+                  . Render storage is ephemeral unless a persistent disk is
+                  mounted and DOCUMIND_DATA_DIR points to it. The API has no
+                  authentication, and CORS is not access control; do not store
+                  sensitive documents.
                 </p>
                 <p className="flex items-start gap-1.5">
                   <Database
@@ -767,7 +725,7 @@ export function SettingsPage() {
 
             <div className="flex items-center justify-between px-1 text-[8px] text-ink-300">
               <span>DocuMind AI v{health?.version ?? "1.0.0"}</span>
-              <span>Local build</span>
+              <span>Gemini RAG workspace</span>
             </div>
           </div>
         </div>

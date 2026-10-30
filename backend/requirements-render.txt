@@ -1,9 +1,1 @@
-# Hosted (Render) install: identical to requirements.txt, but resolves torch from
-# PyTorch's CPU-only index. On a plain `pip install -r requirements.txt` Linux
-# x86_64 pip pulls the default CUDA build of torch plus ~16 nvidia-*/triton
-# packages (~3.2 GB of wheels) that a CPU-only host never uses. The "+cpu" local
-# version sorts above the plain PyPI build, so pip selects it automatically.
-#
-# Render build command:  pip install -r backend/requirements-render.txt
---extra-index-url https://download.pytorch.org/whl/cpu
 -r requirements.txt

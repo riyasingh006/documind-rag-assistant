@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import {
   BrowserRouter,
   Route,
@@ -7,11 +7,49 @@ import {
 } from "react-router-dom";
 import { AppShell } from "@/components/workspace/AppShell";
 import { SettingsProvider } from "@/hooks/useSettings";
-import { DocumentsPage } from "@/pages/DocumentsPage";
-import { LandingPage } from "@/pages/LandingPage";
-import { NotFoundPage } from "@/pages/NotFoundPage";
-import { SettingsPage } from "@/pages/SettingsPage";
-import { WorkspacePage } from "@/pages/WorkspacePage";
+
+const DocumentsPage = lazy(() =>
+  import("@/pages/DocumentsPage").then((module) => ({
+    default: module.DocumentsPage,
+  })),
+);
+const LandingPage = lazy(() =>
+  import("@/pages/LandingPage").then((module) => ({
+    default: module.LandingPage,
+  })),
+);
+const NotFoundPage = lazy(() =>
+  import("@/pages/NotFoundPage").then((module) => ({
+    default: module.NotFoundPage,
+  })),
+);
+const SettingsPage = lazy(() =>
+  import("@/pages/SettingsPage").then((module) => ({
+    default: module.SettingsPage,
+  })),
+);
+const WorkspacePage = lazy(() =>
+  import("@/pages/WorkspacePage").then((module) => ({
+    default: module.WorkspacePage,
+  })),
+);
+
+function RouteContent({ children }: { children: ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <div
+          className="grid min-h-screen place-items-center bg-background text-sm text-muted-foreground"
+          role="status"
+        >
+          Loading DocuMind…
+        </div>
+      }
+    >
+      {children}
+    </Suspense>
+  );
+}
 
 function ScrollManager() {
   const { pathname, hash } = useLocation();
@@ -53,16 +91,48 @@ export default function App() {
       <BrowserRouter>
         <ScrollManager />
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route
+            path="/"
+            element={
+              <RouteContent>
+                <LandingPage />
+              </RouteContent>
+            }
+          />
           <Route element={<AppShell />}>
-            <Route path="/workspace" element={<WorkspacePage />} />
+            <Route
+              path="/workspace"
+              element={
+                <RouteContent>
+                  <WorkspacePage />
+                </RouteContent>
+              }
+            />
             <Route
               path="/workspace/documents"
-              element={<DocumentsPage />}
+              element={
+                <RouteContent>
+                  <DocumentsPage />
+                </RouteContent>
+              }
             />
-            <Route path="/settings" element={<SettingsPage />} />
+            <Route
+              path="/settings"
+              element={
+                <RouteContent>
+                  <SettingsPage />
+                </RouteContent>
+              }
+            />
           </Route>
-          <Route path="*" element={<NotFoundPage />} />
+          <Route
+            path="*"
+            element={
+              <RouteContent>
+                <NotFoundPage />
+              </RouteContent>
+            }
+          />
         </Routes>
       </BrowserRouter>
     </SettingsProvider>

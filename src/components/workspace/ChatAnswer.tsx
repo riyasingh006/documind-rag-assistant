@@ -24,8 +24,7 @@ export interface ChatEntry {
 }
 
 function providerName(provider: string): string {
-  if (provider === "ollama") return "Ollama";
-  if (provider === "openai") return "External LLM";
+  if (provider === "gemini") return "Gemini";
   if (provider === "extractive") return "Extractive fallback";
   return provider;
 }
@@ -143,7 +142,7 @@ export function PendingAnswer() {
             <span className="block h-2 w-[54%] animate-pulse rounded-full bg-ink-100 animation-delay-200" />
           </div>
           <p className="mt-3 text-[9px] text-ink-400">
-            Retrieval is local. Generation may take longer with a local model.
+            Retrieval uses a hosted embedding API; answer generation may take a few seconds.
           </p>
         </div>
       </div>
@@ -299,8 +298,7 @@ export function AnswerMessage({
                     : ""}{" "}
                   It quotes the strongest matching passage.{" "}
                   <span className="text-ink-400">
-                    Start Ollama or configure a provider for synthesized
-                    answers.
+                    Configure Gemini on the backend for synthesized answers.
                   </span>
                 </span>
               </div>

@@ -76,7 +76,7 @@ export function Footer() {
             © {year} DocuMind AI. Turn your documents into answers.
           </p>
           <p className="text-[11px] text-ink-400">
-            Built with FastAPI, sentence-transformers, and FAISS.
+            Built with React, FastAPI, Gemini, and FAISS.
           </p>
         </div>
       </div>

@@ -67,7 +67,7 @@ export function FinalCTA() {
                 {[
                   "Grounded answers",
                   "Validated citations",
-                  "Local embeddings",
+                  "Gemini-powered retrieval",
                 ].map((item) => (
                   <span
                     key={item}

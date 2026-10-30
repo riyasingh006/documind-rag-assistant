@@ -19,6 +19,13 @@ export interface HealthResponse {
     error: string | null;
     device: string;
   };
+  index: {
+    state: "not_started" | "migrating" | "ready" | "failed";
+    ready: boolean;
+    model: string | null;
+    dimension: number | null;
+    error: string | null;
+  };
   llm: {
     configured_provider: string;
     active_provider: string;
@@ -26,15 +33,10 @@ export interface HealthResponse {
     available: boolean;
     fallback_enabled: boolean;
     detail: string | null;
-    ollama_base_url?: string | null;
-    ollama_model?: string | null;
-    ollama_connected?: boolean | null;
-    model_available?: boolean | null;
     generation_active?: boolean;
     status?:
-      | "ready"
-      | "model_missing"
-      | "unavailable"
+      | "configured"
+      | "temporarily_unavailable"
       | "fallback"
       | "extractive"
       | "not_configured";

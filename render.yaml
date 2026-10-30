@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: documind-rag-assistant-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: DOCUMIND_GEMINI_API_KEY
+        sync: false
+      - key: DOCUMIND_LLM_PROVIDER
+        value: gemini
+      - key: DOCUMIND_LLM_MODEL
+        value: gemini-3.8-flash
+      - key: DOCUMIND_EMBEDDING_MODEL
+        value: gemini-embedding-001
+      - key: DOCUMIND_EMBEDDING_DIMENSION
+        value: "768"
+      - key: DOCUMIND_CORS_ORIGINS
+        value: https://documind-rag-assistant.onrender.com
+      - key: DOCUMIND_EXTRACTIVE_FALLBACK
+        value: "true"

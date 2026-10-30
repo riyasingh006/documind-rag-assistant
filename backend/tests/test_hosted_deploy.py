@@ -26,8 +26,13 @@ def make_settings(tmp_path=None, **overrides) -> Settings:
 
 def test_render_frontend_origin_is_in_default_cors_allowlist() -> None:
     settings = make_settings()
-    assert "https://documind-rag-assistant.onrender.com" in settings.cors_origin_list
-    assert "https://riyasingh006.github.io" not in settings.cors_origin_list
+    assert settings.cors_origin_list == [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+        "https://documind-rag-assistant.onrender.com",
+    ]
 
 
 def test_render_frontend_origin_passes_cors_preflight(tmp_path) -> None:

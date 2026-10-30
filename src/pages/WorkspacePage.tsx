@@ -33,7 +33,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
-import { ollamaGuidance } from "@/lib/llm";
+import { llmGuidance } from "@/lib/llm";
 
 const CHAT_KEY = "documind:conversation:v1";
 
@@ -392,7 +392,7 @@ export function WorkspacePage() {
                             {
                               icon: Layers,
                               title: "2. Index",
-                              text: "Text is chunked and embedded locally.",
+                              text: "Text is chunked and sent to Gemini for embeddings.",
                             },
                             {
                               icon: BookOpenCheck,
@@ -503,7 +503,7 @@ export function WorkspacePage() {
                             />
                             <p className="text-[9px] leading-4 text-amber-800/90">
                               Extractive mode is active.{" "}
-                              {ollamaGuidance(health?.llm)}
+                              {llmGuidance(health?.llm)}
                             </p>
                           </div>
                         )}

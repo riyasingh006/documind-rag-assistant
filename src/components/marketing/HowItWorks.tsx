@@ -38,7 +38,7 @@ const steps = [
 const pipeline = [
   { icon: FileStack, label: "Documents", detail: "PDF / TXT" },
   { icon: Scissors, label: "Text Chunks", detail: "≈800 tokens" },
-  { icon: Binary, label: "Embeddings", detail: "MiniLM · 384-d" },
+  { icon: Binary, label: "Embeddings", detail: "Gemini · 768-d" },
   { icon: Radar, label: "Vector Search", detail: "FAISS · Top-K" },
   { icon: MessageSquareQuote, label: "Grounded Answers", detail: "with citations" },
 ];
