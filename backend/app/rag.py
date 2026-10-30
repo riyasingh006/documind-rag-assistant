@@ -486,9 +486,14 @@ class RAGService:
         )
 
         if not self.embedder.ready:
-            raise EmbeddingNotReadyError(
-                "The embedding model is not ready. Check /api/health and the server logs."
-            )
+            # Retry a failed startup load; load() is lock-protected.
+            try:
+                await asyncio.to_thread(self.embedder.load)
+            except Exception as exc:
+                raise EmbeddingNotReadyError(
+                    "The embedding model is not ready. Check /api/health and "
+                    f"the server logs. ({exc})"
+                ) from exc
 
         retrieval_started = time.perf_counter()
         try:

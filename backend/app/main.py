@@ -192,13 +192,19 @@ def create_app(
         configuration, embedding_service, store, _rag = state(request)
 
         if not embedding_service.ready:
-            raise HTTPException(
-                status_code=503,
-                detail=(
-                    "The embedding model is not ready. Check /api/health for "
-                    "the underlying error."
-                ),
-            )
+            # The startup load may have failed (e.g. a transient model
+            # download error). Retry here; load() is lock-protected, so this
+            # waits for an in-flight startup load instead of racing it.
+            try:
+                await asyncio.to_thread(embedding_service.load)
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=503,
+                    detail=(
+                        "The embedding model is not ready. Check /api/health "
+                        f"for the underlying error. ({exc})"
+                    ),
+                ) from exc
 
         try:
             clean_name = sanitize_filename(file.filename)

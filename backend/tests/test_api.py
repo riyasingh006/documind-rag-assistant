@@ -364,3 +364,79 @@ def test_cors_origin_regex_allows_preview_urls(tmp_path) -> None:
             == "https://documind-git-abc123.vercel.app"
         )
         assert _preflight(c, "https://evil.example.com").status_code == 400
+
+
+class _FlakyEmbedder:
+    """Fails the first load (startup), succeeds on retry."""
+
+    def __new__(cls):
+        from tests.conftest import FakeEmbedder
+
+        class Flaky(FakeEmbedder):
+            attempts = 0
+            loaded = False
+            error: str | None = None
+
+            @property
+            def ready(self) -> bool:  # type: ignore[override]
+                return self.loaded
+
+            def load(self) -> None:
+                from app.embeddings import EmbeddingError
+
+                self.attempts += 1
+                if self.attempts == 1:
+                    self.error = "ConnectError: model host unreachable"
+                    raise EmbeddingError("The embedding model could not be loaded.")
+                self.loaded = True
+                self.error = None
+
+        return Flaky()
+
+
+def test_upload_and_query_recover_after_failed_startup_load(settings) -> None:
+    """Regression: one failed startup load must not leave the API permanently 503."""
+    import time
+
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    flaky = _FlakyEmbedder()
+    with TestClient(create_app(settings=settings, embedder=flaky)) as test_client:
+        for _ in range(50):  # wait for the failed startup attempt
+            if flaky.attempts >= 1:
+                break
+            time.sleep(0.05)
+        health = test_client.get("/api/health").json()
+        assert health["status"] == "degraded"
+        assert health["embedding"]["error"]
+
+        response = upload(test_client, "a.txt", b"Retry after failure works fine. " * 10)
+        assert response.status_code == 201
+        assert test_client.get("/api/health").json()["status"] == "ok"
+
+        answer = test_client.post(
+            "/api/query", json={"question": "Does retry after failure work?"}
+        )
+        assert answer.status_code == 200
+
+
+def test_upload_returns_503_when_embedding_keeps_failing(settings) -> None:
+    from fastapi.testclient import TestClient
+
+    from app.embeddings import EmbeddingError
+    from app.main import create_app
+    from tests.conftest import FakeEmbedder
+
+    class Broken(FakeEmbedder):
+        ready = False  # type: ignore[assignment]
+        error = "boom"
+
+        def load(self) -> None:
+            raise EmbeddingError("still broken")
+
+    with TestClient(create_app(settings=settings, embedder=Broken())) as test_client:
+        response = upload(test_client, "a.txt", b"some text " * 10)
+        assert response.status_code == 503
+        assert "not ready" in response.json()["detail"]
