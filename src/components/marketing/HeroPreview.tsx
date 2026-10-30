@@ -221,7 +221,7 @@ export function HeroPreview() {
                   Retrieving evidence
                 </span>
                 <span className="text-[8.5px] font-medium text-ink-500">
-                  all-MiniLM-L6-v2 · FAISS
+                  Gemini embeddings · FAISS
                 </span>
               </div>
             </div>

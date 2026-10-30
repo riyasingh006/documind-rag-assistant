@@ -10,6 +10,28 @@ function collectErrors(page: Page): string[] {
 }
 
 test.describe("landing page", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.endsWith("/health")) {
+        await route.fulfill({
+          json: {
+            status: "ok",
+            version: "1.0.0",
+            embedding: { model: "gemini-embedding-001", dimension: 768, ready: true, error: null, device: "gemini-api" },
+            index: { state: "ready", ready: true, model: "gemini-embedding-001", dimension: 768, error: null },
+            llm: { configured_provider: "gemini", active_provider: "gemini", model: "gemini-3.8-flash", available: true, fallback_enabled: true, detail: null, generation_active: true, status: "configured" },
+            counts: { documents: 0, chunks: 0, index_vectors: 0 },
+            limits: { max_upload_mb: 20, allowed_extensions: [".pdf", ".txt"] },
+            defaults: { chunk_size: 800, chunk_overlap: 120, top_k: 5, score_threshold: 0.2, min_similarity_floor: 0.15 },
+          },
+        });
+      } else {
+        await route.fulfill({ json: [] });
+      }
+    });
+  });
+
   test("renders every marketing section without console errors", async ({
     page,
   }, testInfo) => {

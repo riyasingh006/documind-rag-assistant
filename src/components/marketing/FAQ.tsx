@@ -9,12 +9,11 @@ const items: AccordionItem[] = [
     question: "What is DocuMind AI?",
     answer: (
       <p>
-        DocuMind AI is a document question-answering workspace. You upload PDF
-        or TXT files, the backend extracts and chunks the text, creates
-        embeddings with all-MiniLM-L6-v2, and indexes them with FAISS. When you
-        ask a question, the most relevant passages are retrieved and passed to a
-        configurable language model, which is instructed to answer only from
-        that context. Supporting sources are shown with each answer.
+        DocuMind AI is a document question-answering workspace. Upload PDF or
+        TXT files; the backend extracts and chunks the text, and Gemini creates
+        embeddings for FAISS retrieval. Questions and relevant passages are sent
+        to Gemini to generate source-grounded answers. Supporting sources are
+        shown with each answer.
       </p>
     ),
   },
@@ -34,12 +33,11 @@ const items: AccordionItem[] = [
     question: "How does document-based question answering work?",
     answer: (
       <p>
-        Your question is embedded with the same model used for your documents.
-        A cosine-similarity search over the FAISS index returns the closest
-        chunks above the configured relevance threshold. Those passages form a
-        bounded context for the language model. Citation IDs returned by the
-        model are validated against the retrieved chunks before they are
-        displayed, so references cannot point to sources that were not used.
+        Gemini embeds the question; a similarity search over the FAISS index
+        returns the closest chunks above the configured relevance threshold.
+        Those passages form a bounded context for Gemini. Citation IDs are
+        validated against the retrieved chunks before they are displayed, so
+        references cannot point to sources that were not supplied.
       </p>
     ),
   },
@@ -78,12 +76,11 @@ const items: AccordionItem[] = [
     question: "Does the application require an API key?",
     answer: (
       <p>
-        No API key is needed for upload, extraction, chunking, embeddings, or
-        retrieval — those run locally using sentence-transformers and FAISS. For
-        answer generation, the backend supports a local Ollama model and an
-        optional OpenAI-compatible provider configured through environment
-        variables. If no LLM is available, an extractive fallback composes an
-        answer from the retrieved passages and is clearly labeled as a fallback.
+        Yes. A Gemini API key is required for embeddings and generated answers.
+        Add it only to the backend environment as DOCUMIND_GEMINI_API_KEY; never
+        expose it in the browser. If Gemini is temporarily unavailable, an
+        evidence-only extractive fallback can be enabled and is clearly
+        labelled.
       </p>
     ),
   },
@@ -92,18 +89,12 @@ const items: AccordionItem[] = [
     question: "Are my uploaded documents stored?",
     answer: (
       <p>
-        Yes. Uploaded files are stored on the machine running the backend under{" "}
-        <code className="rounded bg-ink-50 px-1.5 py-0.5 font-mono text-[12px] text-ink-700">
-          backend/data/uploads
-        </code>
-        , with chunk metadata and embeddings in{" "}
-        <code className="rounded bg-ink-50 px-1.5 py-0.5 font-mono text-[12px] text-ink-700">
-          backend/data/index
-        </code>
-        . They persist across restarts until you delete them. This build has no
-        user authentication, so do not expose it publicly with sensitive
-        documents. Embeddings are generated locally; retrieved excerpts are only
-        sent to an external provider if you explicitly configure one.
+        Yes. Uploaded files and their indexes are stored on the backend. On
+        Render, they survive redeploys only when a persistent disk is attached
+        and DOCUMIND_DATA_DIR points to its mount. This build has no user
+        authentication, so do not expose it publicly with sensitive documents.
+        Document and question text are sent to Gemini for embeddings, and
+        retrieved excerpts are also sent for answer generation.
       </p>
     ),
   },

@@ -360,14 +360,14 @@ def test_cors_origin_regex_allows_preview_urls(tmp_path) -> None:
     configured = Settings(
         data_dir=tmp_path / "data",
         llm_provider="extractive",
-        cors_origin_regex=r"https://.*\.vercel\.app",
+        cors_origin_regex=r"https://.*\.onrender\.com",
     )
     with TestClient(create_app(settings=configured, embedder=FakeEmbedder())) as c:
-        allowed = _preflight(c, "https://documind-git-abc123.vercel.app")
+        allowed = _preflight(c, "https://documind-rag-assistant-pr-abc123.onrender.com")
         assert allowed.status_code == 200
         assert (
             allowed.headers["access-control-allow-origin"]
-            == "https://documind-git-abc123.vercel.app"
+            == "https://documind-rag-assistant-pr-abc123.onrender.com"
         )
         assert _preflight(c, "https://evil.example.com").status_code == 400
 

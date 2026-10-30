@@ -225,7 +225,7 @@ export function UploadDropzone({
                 Add more documents
               </p>
               <p className="mt-0.5 text-[11px] text-ink-400">
-                PDF or TXT · up to {maxMb} MB each · processed locally
+                PDF or TXT · up to {maxMb} MB each · Gemini embeddings
               </p>
             </div>
             <Button
@@ -253,7 +253,7 @@ export function UploadDropzone({
             </h3>
             <p className="mt-1.5 max-w-sm text-xs leading-5 text-ink-500">
               Drag and drop PDF or TXT files here, or choose them from your
-              computer. Each file is validated, chunked, and embedded locally.
+              computer. Each file is validated and chunked; Gemini generates its retrieval embeddings.
             </p>
             <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
               <Button

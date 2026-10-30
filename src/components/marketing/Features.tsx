@@ -23,7 +23,7 @@ const features = [
     title: "Semantic Search",
     description:
       "Discover relevant passages based on meaning rather than relying only on exact keyword matches.",
-    meta: "all-MiniLM-L6-v2 · FAISS cosine index",
+    meta: "Gemini embeddings · FAISS cosine index",
     gradient: "from-sky-500 to-brand-500",
   },
   {
@@ -54,8 +54,8 @@ const features = [
     icon: ShieldCheck,
     title: "Privacy-Conscious Processing",
     description:
-      "Extraction and embeddings run on the machine hosting the backend. Documents are stored in a local data directory — no third-party embedding API.",
-    meta: "External LLM only if you configure one",
+      "Documents and vector indexes stay with the backend; Gemini receives document/query text for embedding and retrieved excerpts for generation.",
+    meta: "Gemini API key stays server-side",
     gradient: "from-emerald-500 to-teal-500",
   },
 ];

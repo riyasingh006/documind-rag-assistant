@@ -19,7 +19,7 @@ const audiences = [
   { icon: Users, label: "Knowledge workers" },
 ];
 
-const proofPoints = ["PDF & TXT", "Local embeddings", "Inspectable sources"];
+const proofPoints = ["PDF & TXT", "Gemini-powered retrieval", "Inspectable sources"];
 
 export function Hero() {
   return (
