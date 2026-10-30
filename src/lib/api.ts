@@ -7,9 +7,30 @@ import type {
 
 const configuredBase = import.meta.env.VITE_API_URL as string | undefined;
 
-export const API_BASE = (
-  configuredBase ?? "https://documind-rag-assistant-api.onrender.com/api"
-).replace(/\/+$/, "");
+const DEPLOYED_API_BASE = "https://documind-rag-assistant-api.onrender.com/api";
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+
+/**
+ * Resolve the API base URL.
+ * 1. VITE_API_URL always wins when set at build time.
+ * 2. On localhost, use the same-origin "/api" path, which the Vite dev and
+ *    preview servers proxy to the local backend on port 8000.
+ * 3. Anywhere else, use the deployed backend.
+ */
+export function resolveApiBase(
+  configured: string | undefined,
+  hostname: string,
+): string {
+  const value = configured?.trim();
+  if (value) return value.replace(/\/+$/, "");
+  if (LOCAL_HOSTS.has(hostname)) return "/api";
+  return DEPLOYED_API_BASE;
+}
+
+export const API_BASE = resolveApiBase(
+  configuredBase,
+  typeof window !== "undefined" ? window.location.hostname : "",
+);
 
 export class ApiError extends Error {
   status: number;
@@ -79,7 +100,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       throw new ApiError("The request timed out. Please try again.", 0);
     }
     throw new ApiError(
-      "Unable to reach the DocuMind backend. Make sure the API server is running on port 8000.",
+      `Unable to reach the DocuMind backend at ${API_BASE}. Make sure the API server is running and allows this origin (CORS).`,
       0,
     );
   } finally {
