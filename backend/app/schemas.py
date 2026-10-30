@@ -26,6 +26,14 @@ class EmbeddingHealth(BaseModel):
     device: str
 
 
+class RuntimeHealth(BaseModel):
+    embedding_state: Literal["not_started", "loading", "ready", "failed", "unknown"]
+    embedding_load_seconds: float | None = None
+    memory_rss_mb: int | None = None
+    memory_limit_mb: int | None = None
+    hosted_platform: str | None = None
+
+
 class LLMHealth(BaseModel):
     configured_provider: str
     active_provider: str
@@ -71,6 +79,7 @@ class HealthResponse(BaseModel):
     status: Literal["ok", "degraded"]
     version: str
     embedding: EmbeddingHealth
+    runtime: RuntimeHealth | None = None
     llm: LLMHealth
     counts: Counts
     limits: Limits

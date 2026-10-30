@@ -33,7 +33,9 @@ from .schemas import (
     LLMHealth,
     QueryRequest,
     QueryResponse,
+    RuntimeHealth,
 )
+from .runtime import hosted_platform, memory_limit_mb, rss_mb
 from .store import DocumentStore, StoreError
 
 logger = logging.getLogger("documind")
@@ -45,6 +47,15 @@ if not logger.handlers:
         logging.Formatter("%(levelname)s:     %(name)s - %(message)s")
     )
     logger.addHandler(_handler)
+
+
+def _embedding_state(service: Any) -> str:
+    state = getattr(service, "state", None)
+    if isinstance(state, str) and state:
+        return state
+    if getattr(service, "ready", False):
+        return "ready"
+    return "failed" if getattr(service, "error", None) else "unknown"
 
 
 def create_app(
@@ -157,6 +168,15 @@ def create_app(
                 ready=bool(embedding_service.ready),
                 error=embedding_service.error,
                 device=embedding_service.device,
+            ),
+            runtime=RuntimeHealth(
+                embedding_state=_embedding_state(embedding_service),  # type: ignore[arg-type]
+                embedding_load_seconds=getattr(
+                    embedding_service, "load_seconds", None
+                ),
+                memory_rss_mb=rss_mb(),
+                memory_limit_mb=memory_limit_mb(),
+                hosted_platform=hosted_platform(),
             ),
             llm=LLMHealth(**llm_info),
             counts=Counts(**counts),
