@@ -50,9 +50,6 @@ class EmbeddingService:
                     device=self.device,
                 )
 
-                self._model = model
-                self._tokenizer = model.tokenizer
-
                 dimension_getter = getattr(
                     model,
                     "get_embedding_dimension",
@@ -68,12 +65,16 @@ class EmbeddingService:
                         "The embedding model does not expose its output dimension."
                     )
 
-                self.dimension = int(dimension_getter())
+                dimension = int(dimension_getter())
 
                 max_length = getattr(model, "max_seq_length", None)
-                self.max_seq_length = (
-                    int(max_length) if max_length else 256
-                )
+
+                # Publish state only after everything succeeded, and set
+                # _model last, so `ready` is never True while dimension is None.
+                self._tokenizer = model.tokenizer
+                self.dimension = dimension
+                self.max_seq_length = int(max_length) if max_length else 256
+                self._model = model
 
                 self.error = None
 

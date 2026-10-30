@@ -268,3 +268,35 @@ def test_cors_allows_configured_preview_origin(client) -> None:
     )
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:4173"
+
+
+def test_startup_loads_embedding_model(settings) -> None:
+    """Regression: the lifespan must load the embedding model at startup."""
+    import time
+
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+    from tests.conftest import FakeEmbedder
+
+    class LazyEmbedder(FakeEmbedder):
+        loaded = False
+
+        @property
+        def ready(self) -> bool:  # type: ignore[override]
+            return self.loaded
+
+        def load(self) -> None:
+            self.loaded = True
+
+    lazy = LazyEmbedder()
+    with TestClient(create_app(settings=settings, embedder=lazy)) as test_client:
+        for _ in range(50):
+            if test_client.get("/api/health").json()["embedding"]["ready"]:
+                break
+            time.sleep(0.05)
+        health = test_client.get("/api/health").json()
+        assert health["embedding"]["ready"] is True
+        assert health["status"] == "ok"
+        response = upload(test_client, "a.txt", b"Startup load regression text. " * 10)
+        assert response.status_code == 201

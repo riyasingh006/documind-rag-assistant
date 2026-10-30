@@ -59,13 +59,28 @@ def create_app(
         embedding_service = embedder or EmbeddingService(configuration)
 
         store = DocumentStore(configuration, embedding_service)
-        if embedding_service.ready:
+
+        async def initialise_embeddings() -> None:
+            # Load the model off the event loop so the API port opens
+            # immediately; /api/health reports readiness and any error.
+            try:
+                await asyncio.to_thread(embedding_service.load)
+            except Exception as exc:  # startup failure must not crash the API
+                logger.warning("Embedding model failed to load: %s", exc)
+                return
             try:
                 await asyncio.to_thread(
                     store.ensure_embedding_compatibility, embedding_service
                 )
             except Exception as exc:
                 logger.warning("Could not reconcile stored embeddings: %s", exc)
+            logger.info(
+                "Embedding model ready (%s, dimension=%s)",
+                embedding_service.model_name,
+                embedding_service.dimension,
+            )
+
+        embedding_task = asyncio.create_task(initialise_embeddings())
 
         router = llm_router or LLMRouter(configuration)
         rag = RAGService(
@@ -80,13 +95,16 @@ def create_app(
         app.state.store = store
         app.state.llm_router = router
         app.state.rag = rag
+        app.state.embedding_task = embedding_task
 
         logger.info(
-            "DocuMind API ready (embedding_ready=%s, documents=%s)",
+            "DocuMind API started (embedding_ready=%s, documents=%s)",
             embedding_service.ready,
             store.document_count(),
         )
         yield
+        if not embedding_task.done():
+            embedding_task.cancel()
 
     app = FastAPI(
         title="DocuMind AI API",
