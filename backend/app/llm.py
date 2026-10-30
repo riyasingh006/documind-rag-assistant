@@ -285,6 +285,18 @@ class LLMRouter:
     def configured_provider(self) -> str:
         return self.settings.llm_provider.strip().lower()
 
+    def _ollama_skipped_state(self) -> OllamaState:
+        return OllamaState(
+            reachable=False,
+            model_available=False,
+            detail=(
+                "Ollama is not used on this deployment (no Ollama server is "
+                f"reachable at {self.ollama.base_url}). Set "
+                "DOCUMIND_OPENAI_API_KEY to enable a hosted LLM; otherwise "
+                "answers are extractive."
+            ),
+        )
+
     async def resolve(self, force_check: bool = False) -> ResolvedLLM:
         provider = self.configured_provider
 
@@ -297,6 +309,8 @@ class LLMRouter:
             )
 
         if provider == "ollama":
+            if not self.settings.ollama_active:
+                raise LLMUnavailableError(self._ollama_skipped_state().detail)
             state = await self.ollama.check_availability(force_check)
             if state.usable:
                 return ResolvedLLM(
@@ -320,8 +334,12 @@ class LLMRouter:
             )
 
         if provider == "auto":
-            state = await self.ollama.check_availability(force_check)
-            if state.usable:
+            if self.settings.ollama_active:
+                state = await self.ollama.check_availability(force_check)
+            else:
+                # Hosted platforms cannot run a local Ollama; do not probe it.
+                state = None
+            if state is not None and state.usable:
                 return ResolvedLLM(
                     client=self.ollama,
                     provider="ollama",
@@ -337,16 +355,17 @@ class LLMRouter:
                     automatic=True,
                     ollama_state=state,
                 )
+            reason = (state or self._ollama_skipped_state()).detail
             if self.settings.extractive_fallback:
                 return ResolvedLLM(
                     client=None,
                     provider="extractive",
                     model="extractive fallback",
-                    fallback_reason=state.detail,
+                    fallback_reason=reason,
                     automatic=True,
                     ollama_state=state,
                 )
-            raise LLMUnavailableError(state.detail)
+            raise LLMUnavailableError(reason)
 
         raise LLMUnavailableError(
             f"Unknown LLM provider '{provider}'. Use auto, ollama, openai, or extractive."
@@ -357,7 +376,10 @@ class LLMRouter:
         try:
             resolved = await self.resolve()
         except LLMUnavailableError as exc:
-            state = await self.ollama.check_availability()
+            if self.settings.ollama_active:
+                state = await self.ollama.check_availability()
+            else:
+                state = self._ollama_skipped_state()
             status = "not_configured"
             if configured in {"ollama", "auto"} and state.reachable:
                 status = "model_missing"

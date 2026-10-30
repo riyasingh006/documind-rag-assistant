@@ -440,7 +440,7 @@ class RAGService:
         if not question:
             raise ValueError("Question cannot be empty.")
 
-        total_documents = self.store.document_count()
+        total_documents = await asyncio.to_thread(self.store.document_count)
         if is_greeting(question):
             return self._greeting_response(
                 has_documents=total_documents > 0,
@@ -465,7 +465,11 @@ class RAGService:
                 if document_id not in seen:
                     seen.add(document_id)
                     deduped.append(document_id)
-            unknown = [item for item in deduped if not self.store.has_document(item)]
+            unknown = await asyncio.to_thread(
+                lambda: [
+                    item for item in deduped if not self.store.has_document(item)
+                ]
+            )
             if unknown:
                 raise DocumentSelectionError(
                     "One or more selected documents no longer exist: "

@@ -1,12 +1,29 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 ALLOWED_EXTENSIONS = (".pdf", ".txt")
+
+_LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
+
+
+def running_on_render() -> bool:
+    """Render sets RENDER=true in every service it runs."""
+    return os.environ.get("RENDER", "").strip().lower() == "true"
+
+
+def _is_loopback_url(url: str) -> bool:
+    try:
+        host = urlparse(url if "://" in url else f"//{url}").hostname
+    except ValueError:
+        return False
+    return (host or "").lower() in _LOOPBACK_HOSTS
 
 
 class Settings(BaseSettings):
@@ -61,6 +78,11 @@ class Settings(BaseSettings):
         ),
     )
 
+    # None = automatic: Ollama is skipped on hosted platforms (Render) when it
+    # points at a loopback address, because no Ollama server can exist there.
+    # Set DOCUMIND_OLLAMA_ENABLED=true/false to force the behaviour.
+    ollama_enabled: bool | None = None
+
     openai_base_url: str = "https://api.openai.com/v1"
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
@@ -75,14 +97,34 @@ class Settings(BaseSettings):
     cors_origin_regex: str | None = None
 
     @property
+    def ollama_active(self) -> bool:
+        """Whether the router may try Ollama at all."""
+        if self.ollama_enabled is not None:
+            return self.ollama_enabled
+        if running_on_render() and _is_loopback_url(self.ollama_base_url):
+            return False
+        return True
+
+    @property
     def cors_origin_list(self) -> list[str]:
-        # Browsers send origins without a trailing slash, so a configured
-        # "https://app.example.com/" would otherwise never match.
-        return [
-            origin.strip().rstrip("/")
-            for origin in self.cors_origins.split(",")
-            if origin.strip()
-        ]
+        # A browser Origin header is only scheme://host[:port]. Accept the
+        # common misconfigurations (trailing slash, a path such as
+        # https://user.github.io/repo/, surrounding quotes) by reducing every
+        # entry to that form; otherwise the preflight is rejected with 400.
+        origins: list[str] = []
+        for raw in self.cors_origins.split(","):
+            value = raw.strip().strip("\"'").strip()
+            if not value:
+                continue
+            if value != "*":
+                parsed = urlparse(value)
+                if parsed.scheme and parsed.netloc:
+                    value = f"{parsed.scheme.lower()}://{parsed.netloc.lower()}"
+                else:
+                    value = value.rstrip("/")
+            if value not in origins:
+                origins.append(value)
+        return origins
 
     @property
     def max_upload_bytes(self) -> int:

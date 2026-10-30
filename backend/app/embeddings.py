@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import logging
 import threading
+import time
 
 import numpy as np
 
 from .config import Settings
+from .runtime import rss_mb
+
+logger = logging.getLogger("documind.embeddings")
 
 
 class EmbeddingError(RuntimeError):
@@ -27,6 +32,12 @@ class EmbeddingService:
         self.dimension: int | None = None
         self.max_seq_length: int | None = None
         self.error: str | None = None
+        # not_started -> loading -> ready | failed. `error` only describes a
+        # Python exception; a process killed by the OS (e.g. out of memory)
+        # never reaches it, so `state` and the stage logs are what show that a
+        # load was in progress.
+        self.state: str = "not_started"
+        self.load_seconds: float | None = None
 
         self._model = None
         self._tokenizer = None
@@ -42,9 +53,22 @@ class EmbeddingService:
             if self._model is not None:
                 return
 
+            self.state = "loading"
+            started = time.monotonic()
+            logger.info(
+                "Embedding model load starting: %s (device=%s, rss=%s MB)",
+                self.model_name,
+                self.device,
+                rss_mb(),
+            )
+
             try:
                 from sentence_transformers import SentenceTransformer
 
+                logger.info(
+                    "sentence-transformers imported (rss=%s MB); loading weights",
+                    rss_mb(),
+                )
                 model = SentenceTransformer(
                     self.model_name,
                     device=self.device,
@@ -77,8 +101,18 @@ class EmbeddingService:
                 self._model = model
 
                 self.error = None
+                self.state = "ready"
+                self.load_seconds = round(time.monotonic() - started, 1)
+                logger.info(
+                    "Embedding model load finished in %.1fs (dimension=%s, rss=%s MB)",
+                    self.load_seconds,
+                    self.dimension,
+                    rss_mb(),
+                )
 
             except Exception as exc:
+                self.state = "failed"
+                logger.exception("Embedding model load failed")
                 self.error = f"{type(exc).__name__}: {exc}"
                 self._model = None
                 self._tokenizer = None

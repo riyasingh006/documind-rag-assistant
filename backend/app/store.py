@@ -94,7 +94,13 @@ class DocumentStore:
         self._rows_path = self.index_dir / "index.json"
         self._vectors_path = self.index_dir / "embeddings.npy"
 
+        self._counts_snapshot: dict = {
+            "documents": 0,
+            "chunks": 0,
+            "index_vectors": 0,
+        }
         self._load()
+        self._counts_snapshot = self.counts()
 
     # ------------------------------------------------------------------ load
     def _load(self) -> None:
@@ -478,9 +484,18 @@ class DocumentStore:
             return results[:top_k]
 
     def counts(self) -> dict:
-        with self._lock:
-            return {
+        # Health checks call this on the event loop. add_document() holds the
+        # lock for the whole embedding run (seconds on a small CPU), so never
+        # wait for it here: report the last known counts instead.
+        if not self._lock.acquire(blocking=False):
+            return dict(self._counts_snapshot)
+        try:
+            counts = {
                 "documents": len(self._documents),
                 "chunks": self.chunk_count(),
                 "index_vectors": 0 if self._index is None else int(self._index.ntotal),
             }
+            self._counts_snapshot = counts
+            return dict(counts)
+        finally:
+            self._lock.release()
