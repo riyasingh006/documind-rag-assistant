@@ -1,452 +1,632 @@
-# 🧠 DocuMind — Advanced RAG-Powered Document Intelligence Assistant
+<div align="center">
 
-<p align="center">
-  <strong>Transform Documents into Knowledge. Retrieve with Precision. Answer with Evidence.</strong>
-</p>
+# 🧠 DocuMind
 
-<p align="center">
-  An advanced Retrieval-Augmented Generation (RAG) application that enables intelligent document understanding, semantic search, and context-aware question answering using Google Gemini, FAISS, and FastAPI.
-</p>
+### ADVANCED RAG-POWERED DOCUMENT INTELLIGENCE ASSISTANT
 
-<p align="center">
-  <img src="https://img.shields.io/badge/React-Frontend-61DAFB?style=for-the-badge&logo=react&logoColor=black" />
-  <img src="https://img.shields.io/badge/TypeScript-Language-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
-  <img src="https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
-  <img src="https://img.shields.io/badge/Google_Gemini-AI-4285F4?style=for-the-badge&logo=google&logoColor=white" />
-  <img src="https://img.shields.io/badge/FAISS-Vector_Search-00A67E?style=for-the-badge" />
-</p>
+**Transform Documents into Knowledge. Retrieve with Precision. Generate Answers with Evidence.**
 
-<p align="center">
-  <img src="https://img.shields.io/badge/RAG-Retrieval_Augmented_Generation-purple?style=flat-square" />
-  <img src="https://img.shields.io/badge/Status-Active_Development-success?style=flat-square" />
-  <img src="https://img.shields.io/badge/License-Not_Specified-lightgrey?style=flat-square" />
-</p>
+An intelligent document understanding platform powered by Retrieval-Augmented Generation, Google Gemini, FAISS Vector Search, React, and FastAPI.
 
----
+<br/>
 
-# 📌 1. Project Overview
+<a href="https://github.com/riyasingh006/documind-rag-assistant">
+  <img src="https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github" />
+</a>
+<a href="https://documind-rag-assistant.onrender.com">
+  <img src="https://img.shields.io/badge/Live-Application-46A758?style=for-the-badge&logo=render" />
+</a>
+<a href="https://documind-rag-assistant-api.onrender.com/docs">
+  <img src="https://img.shields.io/badge/API-Swagger_Docs-009688?style=for-the-badge&logo=fastapi" />
+</a>
 
-**DocuMind** is an advanced AI-powered document intelligence workspace designed to transform static PDF and TXT documents into searchable, context-aware knowledge sources.
+<br/><br/>
 
-Built on the principles of **Retrieval-Augmented Generation (RAG)**, DocuMind combines semantic vector retrieval with Large Language Model (LLM) capabilities to generate answers grounded in the actual content of uploaded documents.
+![React](https://img.shields.io/badge/React-Frontend-61DAFB?style=flat-square\&logo=react\&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-Strict_Typing-3178C6?style=flat-square\&logo=typescript\&logoColor=white)
+![Python](https://img.shields.io/badge/Python-Backend-3776AB?style=flat-square\&logo=python\&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-REST_API-009688?style=flat-square\&logo=fastapi\&logoColor=white)
+![Gemini](https://img.shields.io/badge/Google_Gemini-AI_Engine-4285F4?style=flat-square\&logo=google)
+![FAISS](https://img.shields.io/badge/FAISS-Vector_Search-00A67E?style=flat-square)
 
-Instead of relying entirely on a language model's pretrained knowledge, DocuMind retrieves relevant document passages and uses them as contextual evidence before generating an answer.
+![RAG](https://img.shields.io/badge/Architecture-RAG-purple?style=flat-square)
+![Vite](https://img.shields.io/badge/Vite-Build_Tool-646CFF?style=flat-square\&logo=vite\&logoColor=white)
+![Render](https://img.shields.io/badge/Deployment-Render-46E3B7?style=flat-square\&logo=render\&logoColor=black)
 
-The system integrates:
-
-* **React + TypeScript** for an interactive document workspace.
-* **FastAPI** for scalable API communication and backend orchestration.
-* **Google Gemini Embedding API** for semantic vector generation.
-* **FAISS** for efficient similarity-based vector retrieval.
-* **Google Gemini LLM** for contextual answer generation.
-* **Citation Validation** for ensuring generated source references correspond to retrieved evidence.
-
-### 🎯 Core Objective
-
-To provide a document-centric AI assistant that allows users to upload documents, search their contents semantically, and obtain accurate, concise, and source-supported answers through an integrated RAG pipeline.
+</div>
 
 ---
 
-# ✨ 2. Key Features
+# 🌌 01. Introduction
 
-## 📂 Intelligent Document Management
+**DocuMind** is an advanced AI-powered document intelligence system that transforms conventional PDF and TXT documents into searchable, context-aware knowledge sources.
 
-* Upload PDF and TXT documents through the web interface.
-* Extract readable textual content from supported documents.
-* Process documents into manageable text chunks.
-* Maintain document metadata and indexing information.
-* Retrieve and delete previously uploaded documents.
-* Enforce configurable upload-size and PDF-page limits.
+Designed around the principles of **Retrieval-Augmented Generation (RAG)**, DocuMind combines semantic embeddings, vector similarity search, contextual retrieval, and Large Language Model generation to deliver document-grounded answers.
 
-## 🧠 Advanced Semantic Embeddings
+Unlike traditional keyword-based search systems, DocuMind understands the semantic relationship between user questions and document content.
 
-* Generate contextual document embeddings using Google's `gemini-embedding-001`.
-* Generate query embeddings using the same embedding space.
-* Support configurable 768-dimensional embedding vectors.
-* Process multiple texts using configurable embedding batches.
-* Normalize vectors before similarity-based retrieval.
+The application retrieves relevant passages from uploaded documents and supplies them as contextual evidence to Google Gemini before generating responses.
 
-## 🔍 FAISS-Powered Vector Retrieval
+### 🎯 Vision
 
-* Store and search document vectors using FAISS.
-* Perform cosine-style similarity retrieval over normalized vectors.
-* Retrieve the most relevant document passages.
-* Configure Top-K retrieval and similarity thresholds.
-* Maintain vector-to-document and chunk mappings.
-* Detect embedding-model or vector-mapping changes.
+To bridge the gap between static document storage and intelligent information retrieval by creating an AI-powered workspace where users can interact with their documents through natural language.
 
-## 🤖 Context-Aware AI Answer Generation
+### 💡 Core Capabilities
 
-* Generate answers using Google's Gemini model.
-* Provide retrieved document passages as contextual evidence.
-* Generate concise, relevant, document-grounded responses.
-* Validate generated citation IDs against retrieved sources.
-* Apply bounded retries for transient Gemini API failures.
-* Support an evidence-only extractive fallback when enabled.
-
-## 📊 System Health & Monitoring
-
-* Monitor backend service availability.
-* Track embedding initialization status.
-* Report FAISS index readiness and migration state.
-* Monitor Gemini configuration and availability.
-* Track document, chunk, and vector counts.
-* Expose operational information through `/api/health`.
-
-## ⚙️ Reliability & Data Management
-
-* Persist document metadata and vector data under the configured data directory.
-* Validate existing indexes during initialization.
-* Re-embed stored chunks when embedding configurations change.
-* Prevent retrieval against stale vectors during failed migrations.
-* Return clear service-unavailable responses when required AI services are unavailable.
+| Capability                | Description                                   |
+| ------------------------- | --------------------------------------------- |
+| 📂 Document Intelligence  | Upload and process PDF/TXT documents          |
+| 🧠 Semantic Understanding | Generate contextual text embeddings           |
+| 🔍 Vector Retrieval       | Retrieve relevant passages through FAISS      |
+| 🤖 AI Generation          | Generate evidence-grounded answers            |
+| 📑 Source Attribution     | Validate generated citation references        |
+| ⚙️ Index Management       | Maintain vector mappings and compatibility    |
+| 📊 System Monitoring      | Monitor embedding, index, and provider health |
 
 ---
 
-# 🏗️ 3. System Architecture
+# ✨ 02. Key Features
 
-DocuMind follows a modular client-server architecture that separates the presentation layer, document-processing pipeline, embedding generation, vector retrieval, and LLM-based response generation.
+### 📂 Intelligent Document Processing
 
-### High-Level Architecture
+* PDF and TXT document ingestion.
+* Automated text extraction.
+* Configurable document chunking.
+* Chunk overlap for contextual continuity.
+* Document metadata management.
+* Document deletion and index maintenance.
 
-```text
-                 USER
-                   |
-                   ▼
-       ┌─────────────────────────┐
-       │    React + TypeScript   │
-       │      Frontend           │
-       └────────────┬────────────┘
-                    |
-               HTTP / REST
-                    |
-                    ▼
-       ┌─────────────────────────┐
-       │       FastAPI           │
-       │    Backend Service      │
-       └────────────┬────────────┘
-                    |
-          ┌─────────┴──────────┐
-          |                    |
-          ▼                    ▼
- ┌────────────────┐   ┌─────────────────┐
- │ Document       │   │ Query           │
- │ Processing     │   │ Processing      │
- └───────┬────────┘   └────────┬────────┘
-         |                     |
-         ▼                     ▼
- ┌────────────────┐   ┌─────────────────┐
- │ PDF/TXT        │   │ Query Embedding │
- │ Text Extraction│   │ Generation      │
- └───────┬────────┘   └────────┬────────┘
-         |                     |
-         ▼                     |
- ┌────────────────┐            |
- │ Text Chunking  │            |
- └───────┬────────┘            |
-         |                     |
-         ▼                     |
- ┌─────────────────────────────┐
- │ Google Gemini Embedding API │
- │     gemini-embedding-001    │
- └──────────────┬──────────────┘
-                |
-                ▼
-       ┌─────────────────┐
-       │ Normalized      │
-       │ Vector Storage  │
-       └────────┬────────┘
-                |
-                ▼
-       ┌─────────────────┐
-       │ FAISS Vector    │
-       │ Index           │
-       └────────┬────────┘
-                |
-                ▼
-       ┌─────────────────┐
-       │ Similarity      │
-       │ Search          │
-       └────────┬────────┘
-                |
-                ▼
-       ┌─────────────────┐
-       │ Retrieved       │
-       │ Source Passages │
-       └────────┬────────┘
-                |
-                ▼
-       ┌─────────────────────────┐
-       │ Google Gemini LLM       │
-       │ Grounded Generation     │
-       └────────────┬────────────┘
-                    |
-                    ▼
-       ┌─────────────────────────┐
-       │ Citation Validation    │
-       └────────────┬────────────┘
-                    |
-                    ▼
-       ┌─────────────────────────┐
-       │ Final Answer + Sources  │
-       └─────────────────────────┘
+### 🧠 Semantic Embedding Engine
+
+* Google Gemini embedding integration.
+* `gemini-embedding-001` embedding model.
+* Configurable 768-dimensional vectors.
+* Batch-based embedding generation.
+* Normalized vector representations.
+* Consistent embedding space for documents and queries.
+
+### ⚡ Advanced Vector Retrieval
+
+* FAISS-powered similarity search.
+* Cosine-style similarity over normalized vectors.
+* Configurable Top-K retrieval.
+* Similarity threshold filtering.
+* Document-to-chunk mapping.
+* Index compatibility validation.
+
+### 🤖 Grounded AI Answer Generation
+
+* Google Gemini LLM integration.
+* Context-aware prompt construction.
+* Retrieved-passage-based answer generation.
+* Concise and relevant responses.
+* Citation ID validation.
+* Bounded retry handling.
+* Evidence-only extractive fallback.
+
+### 📊 Intelligent System Monitoring
+
+* Backend health monitoring.
+* Embedding readiness reporting.
+* FAISS index status.
+* Gemini provider status.
+* Document and chunk statistics.
+* Configurable service limits.
+
+### 🛡️ Reliability & Data Integrity
+
+* Persistent file-based document storage.
+* Index compatibility checks.
+* Embedding migration support.
+* Protection against stale-vector retrieval.
+* Explicit service-unavailable responses.
+* Controlled fallback behavior.
+
+---
+
+# 🏛️ 03. System Architecture
+
+DocuMind follows a modular, service-oriented client-server architecture.
+
+The architecture separates document ingestion, embedding generation, vector indexing, semantic retrieval, and LLM-based response generation into distinct processing stages.
+
+## 🔷 High-Level System Architecture
+
+```mermaid
+flowchart TB
+
+    U(["👤 USER"])
+
+    subgraph FRONTEND["🎨 PRESENTATION LAYER"]
+        UI["React + TypeScript"]
+        WS["Document Workspace"]
+        QS["Question Interface"]
+    end
+
+    subgraph BACKEND["⚙️ APPLICATION LAYER"]
+        API["FastAPI Application"]
+        ROUTES["REST API Routes"]
+        DP["Document Processing"]
+        QP["Query Processing"]
+    end
+
+    subgraph AI["🧠 AI INTELLIGENCE LAYER"]
+        EMB["Gemini Embedding API"]
+        LLM["Gemini Generation API"]
+        CV["Citation Validation"]
+    end
+
+    subgraph RETRIEVAL["🔍 RETRIEVAL LAYER"]
+        NORM["Vector Normalization"]
+        FAISS["FAISS Vector Index"]
+        SIM["Similarity Search"]
+        RET["Retrieved Passages"]
+    end
+
+    subgraph STORAGE["💾 DATA LAYER"]
+        FILES["Uploaded Documents"]
+        META["Document Metadata"]
+        VECTORS["Vector & Index Data"]
+    end
+
+    U --> UI
+    UI --> WS
+    UI --> QS
+
+    WS --> API
+    QS --> API
+
+    API --> ROUTES
+    ROUTES --> DP
+    ROUTES --> QP
+
+    DP --> FILES
+    DP --> META
+    DP --> EMB
+
+    EMB --> NORM
+    NORM --> FAISS
+    FAISS --> VECTORS
+
+    QP --> EMB
+    QP --> SIM
+    FAISS --> SIM
+    SIM --> RET
+
+    RET --> LLM
+    LLM --> CV
+    CV --> API
+
+    API --> UI
+
+    classDef frontend fill:#142B46,stroke:#38BDF8,color:#FFFFFF
+    classDef backend fill:#173B36,stroke:#34D399,color:#FFFFFF
+    classDef ai fill:#34234C,stroke:#C084FC,color:#FFFFFF
+    classDef retrieval fill:#47351B,stroke:#FBBF24,color:#FFFFFF
+    classDef storage fill:#303747,stroke:#94A3B8,color:#FFFFFF
+
+    class UI,WS,QS frontend
+    class API,ROUTES,DP,QP backend
+    class EMB,LLM,CV ai
+    class NORM,FAISS,SIM,RET retrieval
+    class FILES,META,VECTORS storage
 ```
 
-### Architecture Components
+## 🔄 Architecture Execution Flow
 
-| Component             | Technology               | Responsibility                             |
-| --------------------- | ------------------------ | ------------------------------------------ |
-| Presentation Layer    | React, TypeScript        | User interface and document workspace      |
-| Build Tool            | Vite                     | Frontend development and production builds |
-| API Layer             | FastAPI                  | HTTP endpoints and request handling        |
-| Document Processing   | Python                   | PDF/TXT extraction and chunking            |
-| Embedding Engine      | Google Gemini            | Semantic vector generation                 |
-| Embedding Model       | gemini-embedding-001     | 768-dimensional text embeddings            |
-| Vector Database/Index | FAISS                    | Similarity-based vector retrieval          |
-| Generation Engine     | Google Gemini            | Context-grounded answer generation         |
-| Citation Validation   | Backend validation logic | Validate generated source references       |
-| Persistence           | File-based storage       | Document, metadata, and vector persistence |
+| Layer        | Component          | Responsibility                          |
+| ------------ | ------------------ | --------------------------------------- |
+| Presentation | React + TypeScript | User interaction and document workspace |
+| Application  | FastAPI            | Request handling and orchestration      |
+| Processing   | Python             | Text extraction and chunking            |
+| Embedding    | Gemini API         | Semantic vector generation              |
+| Retrieval    | FAISS              | Vector similarity search                |
+| Generation   | Gemini LLM         | Context-grounded response generation    |
+| Validation   | Citation Validator | Source-reference validation             |
+| Persistence  | File Storage       | Document and index persistence          |
 
 ---
 
-# 🔄 4. Complete RAG Pipeline
+# 🔬 04. Advanced RAG Pipeline
 
-DocuMind implements a document-centric Retrieval-Augmented Generation pipeline consisting of two primary workflows:
+DocuMind implements two interconnected workflows.
 
-1. Document Ingestion Pipeline
-2. Query Retrieval and Generation Pipeline
+1. Document Ingestion Pipeline.
+2. Query Retrieval & Generation Pipeline.
 
-## 4.1 Document Ingestion Pipeline
+## 📥 4.1 Document Ingestion Pipeline
 
-The ingestion pipeline converts uploaded documents into searchable semantic representations.
+This pipeline transforms uploaded documents into searchable vector representations.
 
-### Step 1 — Document Upload
+```mermaid
+flowchart TD
 
-The user uploads a PDF or TXT file through the frontend.
+    A(["📂 Upload PDF / TXT"])
+    B["📋 File Validation"]
+    C["📄 Text Extraction"]
+    D["✂️ Text Chunking"]
+    E["🧠 Gemini Embedding Generation"]
+    F["📐 Vector Normalization"]
+    G["⚡ FAISS Indexing"]
+    H["🗂️ Metadata & Chunk Mapping"]
+    I[("💾 Persistent Storage")]
+    J(["✅ Document Indexed"])
 
-The backend receives the document through the document-upload API and validates its format and configured size restrictions.
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    G --> H
+    H --> I
+    I --> J
 
-### Step 2 — Text Extraction
+    style A fill:#142B46,color:#fff
+    style E fill:#34234C,color:#fff
+    style G fill:#47351B,color:#fff
+    style I fill:#173B36,color:#fff
+    style J fill:#14532D,color:#fff
+```
 
-The backend extracts readable text from the uploaded document.
+### Processing Stages
 
-Supported formats:
+| Stage | Operation     | Technical Purpose                       |
+| ----- | ------------- | --------------------------------------- |
+| 01    | Upload        | Receive PDF/TXT file                    |
+| 02    | Validation    | Verify format and limits                |
+| 03    | Extraction    | Convert document into text              |
+| 04    | Chunking      | Divide text into smaller passages       |
+| 05    | Embedding     | Generate semantic vectors               |
+| 06    | Normalization | Prepare vectors for cosine-style search |
+| 07    | Indexing      | Insert vectors into FAISS               |
+| 08    | Mapping       | Associate vectors with source chunks    |
+| 09    | Persistence   | Store files and index data              |
+
+### ✂️ Intelligent Chunking
+
+Document chunking is an essential part of the RAG pipeline.
+
+Large documents are divided into smaller text segments to improve retrieval relevance and provide focused context to the generation model.
+
+**Default Configuration**
+
+| Parameter            | Value |
+| -------------------- | ----: |
+| Chunk Size           |   800 |
+| Chunk Overlap        |   120 |
+| Embedding Dimension  |   768 |
+| Embedding Batch Size |    32 |
+
+Chunk overlap helps preserve contextual continuity between neighboring text segments.
+
+---
+
+## 🔎 4.2 Query Retrieval & Generation Pipeline
+
+The retrieval pipeline transforms a natural-language question into a grounded AI response.
+
+```mermaid
+flowchart TD
+
+    A(["💬 User Question"])
+    B["🧠 Query Embedding"]
+    C["🔍 FAISS Similarity Search"]
+    D["📊 Top-K Retrieval"]
+    E["🎯 Threshold Filtering"]
+    F["📚 Relevant Source Passages"]
+    G["📝 Context Construction"]
+    H["🤖 Gemini LLM Generation"]
+    I["🔐 Citation Validation"]
+    J(["✨ Grounded Answer + Sources"])
+
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    G --> H
+    H --> I
+    I --> J
+
+    style A fill:#142B46,color:#fff
+    style C fill:#47351B,color:#fff
+    style H fill:#34234C,color:#fff
+    style I fill:#173B36,color:#fff
+    style J fill:#14532D,color:#fff
+```
+
+### 🔍 Retrieval Configuration
+
+| Parameter                | Default | Purpose                        |
+| ------------------------ | ------: | ------------------------------ |
+| Top-K                    |       5 | Maximum retrieved passages     |
+| Score Threshold          |     0.2 | Configured retrieval threshold |
+| Minimum Similarity Floor |    0.15 | Minimum similarity floor       |
+| Embedding Dimension      |     768 | Vector representation size     |
+
+### 🧩 Context-Grounded Generation
+
+The generation engine receives:
+
+* User question.
+* Retrieved document passages.
+* Source identifiers.
+* Instructions to generate evidence-supported responses.
+
+The model generates an answer using the retrieved context.
+
+The backend then validates generated citation IDs against the retrieved source identifiers.
+
+This creates a more traceable response workflow than unrestricted generation.
+
+---
+
+# 🧠 05. AI & Vector Intelligence
+
+## Google Gemini Embedding Engine
+
+**Model:** `gemini-embedding-001`
+
+The embedding engine transforms text into dense numerical vector representations.
+
+These vectors encode semantic relationships between document passages and user questions.
+
+### Embedding Workflow
+
+```text
+Document Text
+     │
+     ▼
+Gemini Embedding API
+     │
+     ▼
+768-Dimensional Vector
+     │
+     ▼
+Normalization
+     │
+     ▼
+FAISS Index
+```
+
+## ⚡ FAISS Vector Search
+
+FAISS is used to index and retrieve document vectors efficiently.
+
+DocuMind normalizes vectors before similarity-based retrieval.
+
+This enables cosine-style similarity search using the selected FAISS indexing approach.
+
+## 🤖 Gemini Generation Engine
+
+**Configured model:** `gemini-3.8-flash`
+
+The generation engine produces concise answers using retrieved document evidence.
+
+### Generation Safeguards
+
+* Context-grounded prompts.
+* Bounded retry budget.
+* Configurable generation timeout.
+* Citation identifier validation.
+* Evidence-only fallback when enabled.
+
+**Important:** The configured model must be available to the Gemini API account and deployment configuration.
+
+---
+
+# 🛠️ 06. Technology Stack
+
+### 🎨 Frontend
+
+| Technology     | Role                      |
+| -------------- | ------------------------- |
+| ⚛️ React       | Component-based interface |
+| 🔷 TypeScript  | Type-safe development     |
+| ⚡ Vite         | Frontend build system     |
+| 🌐 HTTP / REST | Backend communication     |
+
+### ⚙️ Backend
+
+| Technology  | Role                             |
+| ----------- | -------------------------------- |
+| 🐍 Python   | Application and AI orchestration |
+| 🚀 FastAPI  | REST API framework               |
+| 🌐 Uvicorn  | ASGI server                      |
+| 📋 Pydantic | Data validation                  |
+
+### 🧠 AI & Retrieval
+
+| Technology              | Role                            |
+| ----------------------- | ------------------------------- |
+| ✨ Google Gemini API     | Embedding and generation        |
+| 🧠 gemini-embedding-001 | Semantic embeddings             |
+| 🤖 gemini-3.8-flash     | Configured answer generation    |
+| 🔍 FAISS                | Vector similarity search        |
+| 🔢 NumPy                | Vector and numerical operations |
+
+### 🔧 Development & Deployment
+
+| Technology | Role                    |
+| ---------- | ----------------------- |
+| Git        | Version control         |
+| GitHub     | Repository management   |
+| npm        | JavaScript dependencies |
+| pip        | Python dependencies     |
+| Render     | Cloud deployment        |
+| Pytest     | Backend testing         |
+| Playwright | Browser automation      |
+
+---
+
+# 📁 07. Project Structure
+
+The project is organized around a separate frontend and backend architecture.
+
+```text
+DocuMind/
+│
+├── 📁 backend/
+│   │
+│   ├── 📁 app/
+│   │   ├── 🐍 main.py
+│   │   └── ... application modules
+│   │
+│   ├── 📁 data/
+│   │   └── ... documents, metadata and index data
+│   │
+│   ├── 📄 requirements.txt
+│   ├── 📄 requirements-dev.txt
+│   ├── 📄 .env.example
+│   └── 📄 .env
+│
+├── 📁 src/
+│   ├── 📁 components/
+│   ├── 📁 lib/
+│   │   ├── 📄 api.ts
+│   │   └── 📄 types.ts
+│   └── ... frontend modules
+│
+├── 📁 public/
+│
+├── 📄 render.yaml
+├── 📄 package.json
+├── 📄 package-lock.json
+├── 📄 tsconfig.json
+├── 📄 vite.config.ts
+├── 📄 README.md
+└── 📄 .gitignore
+```
+
+*Note: This is a conceptual overview. Refer to the repository for the exact current directory structure.*
+
+---
+
+# 🔌 08. API Architecture & Reference
+
+DocuMind exposes REST endpoints through its FastAPI backend.
+
+### Production API
+
+`https://documind-rag-assistant-api.onrender.com`
+
+### API Endpoints
+
+| Method | Endpoint                       | Description                |
+| ------ | ------------------------------ | -------------------------- |
+| GET    | `/api/health`                  | System health information  |
+| GET    | `/api/documents`               | Retrieve document records  |
+| POST   | `/api/documents`               | Upload a document          |
+| DELETE | `/api/documents/{document_id}` | Delete a document          |
+| POST   | `/api/query`                   | Perform RAG-based querying |
+
+### Health Monitoring
+
+```http
+GET /api/health
+```
+
+Monitors:
+
+* Backend availability.
+* Embedding readiness.
+* FAISS index status.
+* Gemini configuration.
+* Document statistics.
+* Service configuration.
+
+### Document Upload
+
+```http
+POST /api/documents
+Content-Type: multipart/form-data
+```
+
+Supported file formats:
 
 * PDF
 * TXT
 
-**Note:** Scanned and image-only PDFs are not OCR-processed.
+Optional parameters:
 
-### Step 3 — Text Chunking
+* `chunk_size`
+* `chunk_overlap`
 
-Extracted text is divided into smaller, manageable chunks.
+### Semantic Query
 
-Chunking helps:
+```http
+POST /api/query
+Content-Type: application/json
+```
 
-* Reduce unnecessary context.
-* Improve retrieval precision.
-* Provide focused passages to the LLM.
-* Preserve relevant document information.
+**Example Request**
 
-Default configuration:
+```json
+{
+  "question": "What are the major findings in this document?",
+  "document_ids": [],
+  "top_k": 5,
+  "threshold": 0.2
+}
+```
 
-| Parameter     | Default |
-| ------------- | ------: |
-| Chunk Size    |     800 |
-| Chunk Overlap |     120 |
+For exact response schemas and interactive endpoint testing, use the Swagger documentation.
 
-Chunk overlap helps preserve contextual continuity between consecutive passages.
-
-### Step 4 — Embedding Generation
-
-Each document chunk is converted into a numerical vector representation using:
-
-`gemini-embedding-001`
-
-Configured embedding dimension:
-
-`768`
-
-These embeddings capture semantic information and allow the system to identify conceptually related passages.
-
-### Step 5 — Vector Normalization
-
-Generated vectors are normalized before being stored and searched.
-
-This enables cosine-style similarity calculations using FAISS.
-
-### Step 6 — FAISS Indexing
-
-The generated vectors are added to the FAISS index.
-
-The system maintains the associated document and chunk mappings to identify the original source passages during retrieval.
-
-### Step 7 — Persistence
-
-The application stores document files, metadata, and vector/index information under the configured data directory.
-
-Default location:
-
-`backend/data`
+🔗 **API Documentation:** https://documind-rag-assistant-api.onrender.com/docs
 
 ---
 
-## 4.2 Query Retrieval & Generation Pipeline
+# ⚙️ 09. Environment Configuration
 
-Once documents are indexed, users can ask natural-language questions.
+All backend environment variables use the `DOCUMIND_` prefix.
 
-### Step 1 — User Query
-
-The user enters a question related to the uploaded documents.
-
-Example:
-
-"What are the main objectives discussed in this document?"
-
-### Step 2 — Query Embedding
-
-The question is converted into a semantic vector using the same embedding model and vector dimension used for document chunks.
-
-### Step 3 — Similarity Search
-
-FAISS searches the indexed document vectors and identifies passages that are semantically similar to the query.
-
-### Step 4 — Top-K Retrieval
-
-The system retrieves the most relevant passages according to the configured retrieval parameters.
-
-Default values:
-
-* Top-K: 5
-* Score Threshold: 0.2
-* Minimum Similarity Floor: 0.15
-
-### Step 5 — Context Construction
-
-The retrieved passages are assembled into contextual evidence for the language model.
-
-### Step 6 — Grounded Answer Generation
-
-Google Gemini receives:
-
-* The user's question.
-* The retrieved document passages.
-* Instructions to generate an answer grounded in the supplied evidence.
-
-### Step 7 — Citation Validation
-
-The backend validates generated citation IDs against the retrieved source identifiers.
-
-This helps prevent references to sources that were not included in the retrieval results.
-
-### Step 8 — Final Response
-
-The application returns the generated answer along with its associated source information.
-
-If Gemini generation fails and fallback is enabled, the system can provide an evidence-only extractive response with the fallback clearly identified.
-
----
-
-# 🧰 5. Technology Stack
-
-## Frontend Technologies
-
-| Technology  | Purpose                                        |
-| ----------- | ---------------------------------------------- |
-| React       | Component-based user interface                 |
-| TypeScript  | Static typing and maintainable frontend code   |
-| Vite        | Development server and production build system |
-| HTTP / REST | Frontend-backend communication                 |
-
-## Backend Technologies
-
-| Technology         | Purpose                                  |
-| ------------------ | ---------------------------------------- |
-| Python             | Backend development and AI orchestration |
-| FastAPI            | REST API development                     |
-| Uvicorn            | ASGI application server                  |
-| PDF/TXT Processing | Document text extraction                 |
-| Pydantic           | Request and configuration validation     |
-
-## AI & Retrieval Technologies
-
-| Technology           | Purpose                         |
-| -------------------- | ------------------------------- |
-| Google Gemini API    | Embedding and answer generation |
-| gemini-embedding-001 | Semantic embedding generation   |
-| gemini-3.8-flash     | Configured LLM generation model |
-| FAISS                | Vector similarity search        |
-| NumPy                | Numerical vector operations     |
-
-## Development & Deployment
-
-| Technology | Purpose                        |
-| ---------- | ------------------------------ |
-| Git        | Version control                |
-| GitHub     | Source code management         |
-| npm        | Frontend dependency management |
-| pip        | Python dependency management   |
-| Render     | Frontend and backend hosting   |
-| Playwright | End-to-end browser testing     |
-| Pytest     | Backend automated testing      |
-
----
-
-# ⚙️ 6. Configuration & Environment Variables
-
-DocuMind uses backend environment variables with the `DOCUMIND_` prefix.
-
-The complete configuration reference is maintained in:
+Configuration reference:
 
 `backend/.env.example`
 
-### Environment Configuration
+| Variable                            | Default              | Description             |
+| ----------------------------------- | -------------------- | ----------------------- |
+| `DOCUMIND_GEMINI_API_KEY`           | Unset                | Gemini API credential   |
+| `DOCUMIND_EMBEDDING_MODEL`          | gemini-embedding-001 | Embedding model         |
+| `DOCUMIND_EMBEDDING_DIMENSION`      | 768                  | Vector dimension        |
+| `DOCUMIND_EMBEDDING_BATCH_SIZE`     | 32                   | Embedding batch size    |
+| `DOCUMIND_LLM_PROVIDER`             | gemini               | Generation provider     |
+| `DOCUMIND_LLM_MODEL`                | gemini-3.8-flash     | Generation model        |
+| `DOCUMIND_EXTRACTIVE_FALLBACK`      | true                 | Enable fallback         |
+| `DOCUMIND_LLM_TIMEOUT_SECONDS`      | 20                   | Per-attempt timeout     |
+| `DOCUMIND_LLM_RETRY_BUDGET_SECONDS` | 35                   | Retry budget            |
+| `DOCUMIND_DATA_DIR`                 | backend/data         | Data directory          |
+| `DOCUMIND_CORS_ORIGINS`             | Configured origins   | Trusted browser origins |
+| `DOCUMIND_CORS_ORIGIN_REGEX`        | Unset                | Optional origin regex   |
+| `DOCUMIND_MAX_UPLOAD_MB`            | 20                   | Upload size limit       |
+| `DOCUMIND_MAX_PDF_PAGES`            | 500                  | PDF page limit          |
 
-| Variable                            | Default Value                       | Description                          |
-| ----------------------------------- | ----------------------------------- | ------------------------------------ |
-| `DOCUMIND_GEMINI_API_KEY`           | Unset                               | Google Gemini API authentication     |
-| `DOCUMIND_EMBEDDING_MODEL`          | `gemini-embedding-001`              | Embedding model                      |
-| `DOCUMIND_EMBEDDING_DIMENSION`      | `768`                               | Embedding vector dimension           |
-| `DOCUMIND_EMBEDDING_BATCH_SIZE`     | `32`                                | Texts processed per embedding batch  |
-| `DOCUMIND_LLM_PROVIDER`             | `gemini`                            | Configured generation provider       |
-| `DOCUMIND_LLM_MODEL`                | `gemini-3.8-flash`                  | Configured generation model          |
-| `DOCUMIND_EXTRACTIVE_FALLBACK`      | `true`                              | Enables evidence-only fallback       |
-| `DOCUMIND_LLM_TIMEOUT_SECONDS`      | `20`                                | Generation attempt timeout           |
-| `DOCUMIND_LLM_RETRY_BUDGET_SECONDS` | `35`                                | Total bounded retry budget           |
-| `DOCUMIND_DATA_DIR`                 | `backend/data`                      | Document and index storage directory |
-| `DOCUMIND_CORS_ORIGINS`             | Local and configured Render origins | Trusted frontend origins             |
-| `DOCUMIND_CORS_ORIGIN_REGEX`        | Unset                               | Optional trusted-origin regex        |
-| `DOCUMIND_MAX_UPLOAD_MB`            | `20`                                | Maximum upload size                  |
-| `DOCUMIND_MAX_PDF_PAGES`            | `500`                               | Maximum PDF page count               |
+### 🔐 Security Rule
 
-### 🔐 API Key Security
+The Gemini API key must only exist on the backend.
 
-The Gemini API key must remain exclusively on the backend.
+Never expose it through:
 
-Never:
-
-* Add the Gemini API key to a `VITE_` frontend environment variable.
-* Commit `.env` files to GitHub.
-* Expose API credentials in browser-side code.
-* Share secrets in public logs or screenshots.
-
-The frontend communicates with the backend, while the backend securely handles Gemini API requests.
+* Frontend environment variables.
+* `VITE_` variables.
+* Browser-side JavaScript.
+* Public GitHub commits.
 
 ---
 
-# 🚀 7. Local Installation & Setup
+# 🚀 10. Local Development Setup
 
-## Prerequisites
+### Prerequisites
 
-Install the following before running DocuMind locally:
-
-* Python 3.11 or later
-* Node.js 20.19 or later
+* Python 3.11+
+* Node.js 20.19+
 * npm
 * Git
 * Google Gemini API key
 
-### Step 1 — Clone the Repository
+### 1️⃣ Clone Repository
 
 ```bash
 git clone https://github.com/riyasingh006/documind-rag-assistant.git
@@ -454,139 +634,112 @@ git clone https://github.com/riyasingh006/documind-rag-assistant.git
 cd documind-rag-assistant
 ```
 
-### Step 2 — Configure Backend Environment
-
-Navigate to the backend directory:
+### 2️⃣ Configure Backend
 
 ```bash
 cd backend
 ```
 
-Create a `.env` file using `.env.example` as the reference.
-
-Add your Gemini API key:
+Create `.env` using `.env.example` and configure:
 
 ```env
 DOCUMIND_GEMINI_API_KEY=your_gemini_api_key
 ```
 
-Configure the remaining variables according to your requirements.
-
-### Step 3 — Create a Python Virtual Environment
+### 3️⃣ Create Virtual Environment
 
 ```bash
 python -m venv .venv
 ```
 
-Activate it.
-
-**Windows:**
+**Windows**
 
 ```bash
 .venv\Scripts\activate
 ```
 
-**Linux / macOS:**
+**Linux / macOS**
 
 ```bash
 source .venv/bin/activate
 ```
 
-### Step 4 — Install Backend Dependencies
+### 4️⃣ Install Dependencies
 
 ```bash
 pip install -r requirements-dev.txt
 ```
 
-### Step 5 — Start the FastAPI Server
+### 5️⃣ Start Backend
 
 ```bash
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Backend URL:
+Backend:
 
 `http://127.0.0.1:8000`
 
-Health endpoint:
+### 6️⃣ Install Frontend Dependencies
 
-`http://127.0.0.1:8000/api/health`
-
-Interactive API documentation:
-
-`http://127.0.0.1:8000/docs`
-
-### Step 6 — Install Frontend Dependencies
-
-Open a new terminal from the repository root:
+Open another terminal in the repository root.
 
 ```bash
 npm ci
 ```
 
-### Step 7 — Start the Frontend
+### 7️⃣ Start Frontend
 
 ```bash
 npm run dev
 ```
 
-Open the local Vite URL displayed in the terminal, normally:
+Open:
 
 `http://localhost:5173`
 
-The Vite development server proxies `/api` requests to the local FastAPI service on port `8000`.
+The Vite development server proxies `/api` requests to the local FastAPI backend.
 
 ---
 
-# ☁️ 8. Deployment Architecture — Render
+# ☁️ 11. Production Deployment — Render
 
-DocuMind uses separate frontend and backend deployments.
+DocuMind uses separate deployment services for its frontend and backend.
 
-| Layer       | Hosting Platform   | Service                   |
-| ----------- | ------------------ | ------------------------- |
-| Frontend    | Render Static Site | React + Vite              |
-| Backend     | Render Web Service | FastAPI                   |
-| AI Services | Google Gemini API  | Embeddings and generation |
+| Service        | Platform      | Deployment Type     |
+| -------------- | ------------- | ------------------- |
+| Frontend       | Render        | Static Site         |
+| Backend        | Render        | Web Service         |
+| Embedding API  | Google Gemini | External AI Service |
+| Generation API | Google Gemini | External AI Service |
 
-### Production URLs
+### 🌐 Live Application
 
-**Frontend:**
+**Frontend**
 
-`https://documind-rag-assistant.onrender.com`
+https://documind-rag-assistant.onrender.com
 
-**Backend:**
+**Backend**
 
-`https://documind-rag-assistant-api.onrender.com`
+https://documind-rag-assistant-api.onrender.com
 
-**Backend Health:**
+**Health Check**
 
-`https://documind-rag-assistant-api.onrender.com/api/health`
+https://documind-rag-assistant-api.onrender.com/api/health
 
-**API Documentation:**
+## Backend Configuration
 
-`https://documind-rag-assistant-api.onrender.com/docs`
+| Setting        | Value                                              |
+| -------------- | -------------------------------------------------- |
+| Root Directory | `backend`                                          |
+| Build Command  | `pip install -r requirements.txt`                  |
+| Start Command  | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
+| Health Check   | `/api/health`                                      |
 
-## 8.1 Backend Deployment Configuration
-
-For the existing Render API Web Service:
-
-| Setting           | Configuration                                      |
-| ----------------- | -------------------------------------------------- |
-| Root Directory    | `backend`                                          |
-| Build Command     | `pip install -r requirements.txt`                  |
-| Start Command     | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
-| Health Check Path | `/api/health`                                      |
-
-Keep `$PORT` exactly as shown so Render can provide the assigned service port.
-
-## 8.2 Backend Environment Configuration
-
-Add the following variables in:
-
-**Render → Backend Service → Environment**
+### Backend Environment Variables
 
 ```env
-DOCUMIND_GEMINI_API_KEY=your_secret_api_key
+DOCUMIND_GEMINI_API_KEY=your_secret_key
 
 DOCUMIND_LLM_PROVIDER=gemini
 DOCUMIND_LLM_MODEL=gemini-3.8-flash
@@ -599,196 +752,41 @@ DOCUMIND_CORS_ORIGINS=https://documind-rag-assistant.onrender.com
 DOCUMIND_EXTRACTIVE_FALLBACK=true
 ```
 
-Add the actual Gemini API key as a secret environment variable.
+### Frontend Environment Variables
 
-Do not commit it to the repository.
+Configure in the Render Static Site:
 
-## 8.3 Frontend Deployment Configuration
+```env
+VITE_API_URL=https://documind-rag-assistant-api.onrender.com/api
+```
 
-For the Render frontend Static Site, configure:
+After updating frontend build-time variables, redeploy the Static Site.
 
-| Key            | Value                                                 |
-| -------------- | ----------------------------------------------------- |
-| `VITE_API_URL` | `https://documind-rag-assistant-api.onrender.com/api` |
-
-This variable must be available during the Vite production build.
-
-After updating the variable, redeploy the frontend.
-
-## 8.4 Render Blueprint
-
-The repository includes:
-
-`render.yaml`
-
-It describes the API service's build command, start command, health-check path, and secret configuration.
-
-When using Blueprint synchronization:
-
-* Inspect the proposed service changes.
-* Avoid accidentally creating a duplicate backend service.
-* If a duplicate service is proposed, cancel synchronization and configure the existing service manually.
-
-## 8.5 Persistent Storage Considerations
+### 💾 Persistent Storage
 
 Render's default filesystem is ephemeral.
 
-This means uploaded files and vector data may not survive service restarts or redeployments.
-
-For persistent storage:
+For persistent document and index storage:
 
 1. Attach a persistent disk to the backend service.
-2. Configure an appropriate mount path, such as `/var/data`.
-3. Set:
+2. Mount it at `/var/data`.
+3. Configure:
 
 ```env
 DOCUMIND_DATA_DIR=/var/data
 ```
 
-Persistent disk availability and pricing depend on the Render plan.
+Persistent storage may involve additional plan-dependent charges.
 
-Without persistent storage, maintain backups of uploaded documents and index data before redeployments.
-
----
-
-# 🔌 9. REST API Reference
-
-DocuMind exposes REST endpoints through its FastAPI backend.
-
-Base URL:
-
-```text
-http://127.0.0.1:8000
-```
-
-Production base URL:
-
-```text
-https://documind-rag-assistant-api.onrender.com
-```
-
-| Method | Endpoint                       | Description                                      |
-| ------ | ------------------------------ | ------------------------------------------------ |
-| GET    | `/api/health`                  | Backend and AI service health                    |
-| GET    | `/api/documents`               | Retrieve uploaded document records               |
-| POST   | `/api/documents`               | Upload and process a PDF/TXT document            |
-| DELETE | `/api/documents/{document_id}` | Delete a document and its associated vectors     |
-| POST   | `/api/query`                   | Perform semantic retrieval and answer generation |
-
-## 9.1 Health Check
-
-```http
-GET /api/health
-```
-
-Provides information about:
-
-* Backend availability.
-* Embedding service readiness.
-* FAISS index state.
-* Gemini provider configuration.
-* Document and chunk counts.
-* Service limits and defaults.
-
-## 9.2 List Documents
-
-```http
-GET /api/documents
-```
-
-Returns the document records currently maintained by the application.
-
-## 9.3 Upload Document
-
-```http
-POST /api/documents
-Content-Type: multipart/form-data
-```
-
-Accepts PDF or TXT files.
-
-Optional processing parameters:
-
-* `chunk_size`
-* `chunk_overlap`
-
-## 9.4 Delete Document
-
-```http
-DELETE /api/documents/{document_id}
-```
-
-Removes the specified document and its associated vector records.
-
-## 9.5 Query Documents
-
-```http
-POST /api/query
-Content-Type: application/json
-```
-
-Example request:
-
-```json
-{
-  "question": "What are the major findings discussed in the document?",
-  "document_ids": [],
-  "top_k": 5,
-  "threshold": 0.2
-}
-```
-
-The backend processes the question, retrieves relevant passages, and generates a grounded response when the required AI services are available.
-
-For exact request and response schemas, refer to the interactive FastAPI documentation at `/docs`.
+Without a persistent disk, back up document and index data before redeployments.
 
 ---
 
-# 🛡️ 10. Reliability, Error Handling & Index Migration
+# 🧪 12. Testing & Quality Assurance
 
-DocuMind includes safeguards to prevent unreliable retrieval and misleading AI responses.
+DocuMind includes automated testing for frontend behavior, backend processing, retrieval logic, and API reliability.
 
-### Embedding Service Availability
-
-When the Gemini API key is missing or the embedding service is unavailable, the system reports degraded health and returns clear service-unavailable responses for operations that require embeddings.
-
-### Bounded Generation Retries
-
-Transient Gemini generation failures can be retried within a configured time budget.
-
-This prevents unlimited retry loops and keeps generation attempts bounded.
-
-### Extractive Fallback
-
-When enabled, the application can fall back to evidence-only extractive responses after generation failures.
-
-Fallback responses are explicitly identified rather than being presented as successful Gemini-generated answers.
-
-### Index Compatibility
-
-The system checks existing vector indexes for compatibility with the configured embedding model and vector mappings.
-
-If the embedding model or vector dimension changes, existing stored chunks are re-embedded to rebuild a compatible index.
-
-### Failed Migration Protection
-
-During a failed index migration:
-
-* The index reports its migration error.
-* Upload and query operations return HTTP 503.
-* The system avoids searching stale or incompatible vectors.
-
-**Important:** Back up the configured data directory before changing embedding models or dimensions.
-
----
-
-# 🧪 11. Testing & Quality Assurance
-
-DocuMind includes automated checks covering frontend, backend, API behavior, and the document-processing workflow.
-
-## Frontend Testing
-
-Run from the repository root:
+### Frontend Tests
 
 ```bash
 npm ci
@@ -797,176 +795,225 @@ npm run typecheck
 npm run build
 ```
 
-### End-to-End Testing
-
-Install the Playwright browser:
+### Browser Testing
 
 ```bash
 npx playwright install chromium
-```
 
-Run end-to-end tests:
-
-```bash
 npm run test:e2e
 ```
 
-The workspace flow uses stubbed API responses to provide repeatable browser tests without creating documents in the live Render service.
-
-## Backend Testing
-
-Navigate to the backend directory:
+### Backend Tests
 
 ```bash
 cd backend
-```
 
-Install development dependencies:
-
-```bash
 pip install -r requirements-dev.txt
-```
 
-Run tests:
-
-```bash
 python -m pytest
 ```
 
-### Automated Test Coverage
+### Test Coverage
 
-The backend tests cover:
+| Area              | Validation                  |
+| ----------------- | --------------------------- |
+| Provider Handling | Retry and fallback behavior |
+| API               | Payload validation          |
+| Embeddings        | Batch processing            |
+| Citations         | Source ID validation        |
+| Index             | Migration and compatibility |
+| Rollback          | Failed migration handling   |
+| Documents         | Upload and deletion         |
+| Monitoring        | Health reporting            |
+| Frontend          | Workspace interaction       |
+| Browser           | End-to-end workflow         |
 
-* Provider retry behavior.
-* API payload validation.
-* Embedding batch processing.
-* Citation validation.
-* Index migration.
-* Migration rollback.
-* Document upload.
-* Document deletion.
-* Health reporting.
-
-Tests use deterministic fake embedding and LLM responses and do not require live Gemini credentials.
+The backend tests use deterministic fake embedding and LLM responses and do not require live Gemini credentials.
 
 ---
 
-# 🔐 12. Security & Privacy Considerations
+# 🛡️ 13. Reliability & Fault Handling
 
-Security and data isolation are important considerations when deploying document intelligence systems.
+DocuMind incorporates controlled failure handling across its RAG pipeline.
 
-### API Key Protection
+### 🔹 Embedding Service Failure
 
-* Gemini credentials are maintained on the backend.
-* Secret variables should be configured through deployment environment settings.
-* Sensitive credentials must never be exposed in frontend bundles or public repositories.
+When the Gemini API key is missing or embedding generation is unavailable, the application reports degraded health.
 
-### CORS Configuration
+Operations requiring embeddings return a service-unavailable response.
 
-Only trusted frontend origins should be included in `DOCUMIND_CORS_ORIGINS`.
+### 🔹 Generation Failure
 
-Avoid unnecessarily broad CORS configurations.
+Transient Gemini generation failures can be retried within a bounded time budget.
+
+### 🔹 Extractive Fallback
+
+When enabled, the system can return evidence-only extractive responses.
+
+Fallback output is explicitly identified and is not presented as a successful Gemini-generated answer.
+
+### 🔹 Index Migration
+
+Changes in embedding configuration can require existing document chunks to be re-embedded.
+
+The application checks index compatibility and prevents queries against stale vectors during failed migrations.
+
+### 🔹 Data Protection
+
+Back up the configured data directory before changing embedding models, dimensions, or performing index migrations.
+
+---
+
+# 🔐 14. Security & Privacy
+
+Security considerations are essential for document intelligence applications.
+
+### API Credential Security
+
+* Backend-only Gemini credentials.
+* Environment-based secret management.
+* No API keys in frontend bundles.
+* No committed `.env` files.
+
+### CORS Protection
+
+* Restrict trusted browser origins.
+* Configure production frontend domains explicitly.
+* Avoid unnecessarily permissive CORS rules.
 
 ### Document Privacy
 
-DocuMind sends document text to Google for embedding generation. Retrieved passages and user questions are also sent to Google Gemini for answer generation.
+Document text is sent to Google for embedding generation. Retrieved passages and user questions are also sent to Gemini for answer generation.
 
-Users should understand this data flow before uploading sensitive documents.
+Users should review this data flow before uploading sensitive information.
 
-### Authentication Limitation
+### Current Authentication Limitations
 
-The current application does not provide authentication or per-user document isolation.
+The application currently does not provide authentication or per-user document isolation.
 
-Therefore, it should not be exposed as a public multi-user document service for private or confidential files without additional security controls.
-
----
-
-# ⚠️ 13. Current Limitations
-
-| Area              | Limitation                                                                     |
-| ----------------- | ------------------------------------------------------------------------------ |
-| Document Formats  | PDF and TXT only                                                               |
-| OCR               | Scanned/image-only PDFs are not OCR-processed                                  |
-| Authentication    | No authentication layer                                                        |
-| User Isolation    | No per-user data separation                                                    |
-| Embeddings        | Requires a configured and available Gemini API                                 |
-| Answer Generation | Requires a configured and available Gemini model                               |
-| Persistence       | Render filesystem is ephemeral without persistent storage                      |
-| AI Reliability    | Gemini requests may fail because of API availability, quota, or network issues |
-| Fallback          | Extractive fallback does not provide full generative capabilities              |
+It should not be exposed as a public multi-user private-document service without additional access-control and security mechanisms.
 
 ---
 
-# 🔮 14. Future Enhancement Roadmap
+# ⚠️ 15. Known Limitations
 
-Potential future improvements for DocuMind include:
-
-* **OCR Integration:** Extract text from scanned and image-based PDFs.
-* **Advanced Chunking:** Add semantic chunking and document-aware segmentation.
-* **Hybrid Retrieval:** Combine vector search with keyword-based retrieval.
-* **Reranking:** Improve passage relevance using a dedicated reranking stage.
-* **Conversation Memory:** Support contextual follow-up questions.
-* **Multi-Format Support:** Extend document ingestion to DOCX and additional formats.
-* **Authentication:** Introduce secure user authentication and authorization.
-* **Multi-Tenant Storage:** Provide user-specific document collections and access isolation.
-* **Advanced Analytics:** Track retrieval quality, latency, and generation performance.
-* **Document Summarization:** Generate structured document summaries.
-* **Export Functionality:** Export generated answers and document insights.
-* **Improved Observability:** Add structured logs, request tracing, and performance monitoring.
+| Category        | Current Limitation                          |
+| --------------- | ------------------------------------------- |
+| File Processing | PDF and TXT supported                       |
+| OCR             | Scanned PDFs are not OCR-processed          |
+| Authentication  | Not implemented                             |
+| User Isolation  | Not implemented                             |
+| Embedding       | Requires Gemini API availability            |
+| Generation      | Requires configured Gemini model            |
+| Storage         | Default Render filesystem is ephemeral      |
+| Retrieval       | Depends on embedding and index availability |
+| AI Output       | Subject to model and API limitations        |
 
 ---
 
-# 📁 15. Project Repository
+# 🔮 16. Future Development Roadmap
 
-**GitHub Repository:**
+The following enhancements represent potential future development directions.
 
-https://github.com/riyasingh006/documind-rag-assistant
+### 🧠 Retrieval Intelligence
 
-The project separates frontend presentation, backend API orchestration, AI integration, and document storage into distinct areas.
+* Hybrid keyword and vector retrieval.
+* Semantic chunking.
+* Advanced reranking.
+* Query expansion.
+* Improved retrieval evaluation.
 
-Refer to the repository's actual directory structure for the latest implementation details.
+### 🤖 AI Capabilities
+
+* Multi-document reasoning.
+* Conversational memory.
+* Structured document summarization.
+* Multi-step question answering.
+* Additional model-provider integrations.
+
+### 📂 Document Intelligence
+
+* OCR for scanned documents.
+* DOCX support.
+* Spreadsheet ingestion.
+* Document comparison.
+* Knowledge extraction.
+
+### 🔐 Enterprise Readiness
+
+* User authentication.
+* Role-based access control.
+* Multi-tenant document storage.
+* Secure document isolation.
+* Audit logging.
+
+### 📊 Monitoring & Analytics
+
+* Retrieval performance metrics.
+* API latency tracking.
+* Embedding usage analytics.
+* Generation observability.
+* Operational dashboards.
 
 ---
 
-# 💡 16. Why DocuMind?
+# 💡 17. Why DocuMind?
 
-Traditional document search often depends on exact keyword matching, making it difficult to find information when a user's question uses different wording from the original document.
+Traditional document search systems often depend on exact keyword matching.
 
-DocuMind addresses this challenge through semantic retrieval and grounded generation.
+This makes it difficult to find relevant information when users express questions differently from the original document.
 
-Its RAG architecture provides:
+DocuMind addresses this limitation through semantic embeddings and Retrieval-Augmented Generation.
 
-* Meaning-based document retrieval.
-* Context-aware question answering.
-* Source-supported responses.
-* Configurable similarity retrieval.
-* Citation reference validation.
-* Controlled fallback behavior.
-* Modular separation of AI and application services.
+### What Makes the Architecture Valuable?
 
-By combining vector search with language-model generation, DocuMind turns document collections into interactive knowledge sources.
+| Traditional Search               | DocuMind                    |
+| -------------------------------- | --------------------------- |
+| Keyword-based matching           | Semantic retrieval          |
+| Manual information discovery     | Natural-language questions  |
+| Search results without reasoning | Context-grounded generation |
+| Limited contextual understanding | Retrieved passage context   |
+| No integrated source validation  | Citation ID validation      |
+| Separate search and answer tools | Unified RAG workflow        |
 
----
-
-# 👩‍💻 17. Developer
-
-**Developed by: Riya Singh**
-
-BCA — Artificial Intelligence & Machine Learning
-
-Interested in Artificial Intelligence, Machine Learning, Java Development, and intelligent software engineering solutions.
-
-### Connect & Explore
-
-* GitHub: [@riyasingh006](https://github.com/riyasingh006)
-* Project Repository: [DocuMind — Advanced RAG Assistant](https://github.com/riyasingh006/documind-rag-assistant)
+DocuMind demonstrates how modern AI infrastructure can transform static documents into interactive knowledge sources.
 
 ---
 
-<p align="center">
-  <strong>🧠 DocuMind — From Documents to Intelligent Insights.</strong>
-</p>
+# 👩‍💻 18. Developer & Project Information
 
-<p align="center">
-  Built with Python, React, FAISS, and Google Gemini.
-</p>
+<div align="center">
+
+### 👩‍💻 Riya Singh
+
+**BCA — Artificial Intelligence & Machine Learning**
+
+Artificial Intelligence | Machine Learning | Java Development | Software Engineering
+
+<br/>
+
+<a href="https://github.com/riyasingh006">
+  <img src="https://img.shields.io/badge/GitHub-Riya_Singh-181717?style=for-the-badge&logo=github" />
+</a>
+
+<a href="https://github.com/riyasingh006/documind-rag-assistant">
+  <img src="https://img.shields.io/badge/Explore-DocuMind_Repository-238636?style=for-the-badge&logo=github" />
+</a>
+
+</div>
+
+---
+
+<div align="center">
+
+# 🧠 DOCUMIND
+
+### From Documents to Intelligent Insights.
+
+**Powered by React · TypeScript · Python · FastAPI · Google Gemini · FAISS**
+
+<br/>
+
+⭐ If you find this project interesting, explore the repository and its architecture.
+
+</div>
